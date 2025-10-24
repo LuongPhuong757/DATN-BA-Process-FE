@@ -1,9 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './TableView.css';
+
+// Simple Dropdown Component with slide down animation
+interface SimpleDropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  getTypeColor: (type: string) => string;
+}
+
+const SimpleDropdown: React.FC<SimpleDropdownProps> = ({ 
+  value, 
+  onChange, 
+  options, 
+  getTypeColor 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleSelect = (optionValue: string) => {
+    onChange(optionValue);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="simple-dropdown" ref={dropdownRef}>
+      <div 
+        className="dropdown-trigger"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ backgroundColor: getTypeColor(value) }}
+      >
+        <span>{value}</span>
+        <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
+      </div>
+      
+      <div className={`dropdown-menu ${isOpen ? 'open' : ''}`}>
+        {options.map((option) => (
+          <div
+            key={option.value}
+            className={`dropdown-option ${value === option.value ? 'selected' : ''}`}
+            onClick={() => handleSelect(option.value)}
+          >
+            {option.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export interface ProcessedItem {
   id: number;
   itemId: number;
+  content: string;
+  type: string;
+  database: string;
+  description: string;
+  imageProcessingResultId: number;
+  dataType?: string;
+  dbField?: string;
+}
+
+export interface ProcessedItemWithoutId {
   content: string;
   type: string;
   database: string;
@@ -18,8 +89,9 @@ interface TableViewProps {
   isLoading?: boolean;
   isEditable?: boolean;
   onSave?: (updatedItems: ProcessedItem[]) => void;
-  onSaveToDB?: (items: ProcessedItem[]) => void;
+  onSaveToDB?: (items: ProcessedItemWithoutId[]) => void;
 }
+
 
 const TableView: React.FC<TableViewProps> = ({ 
   items, 
@@ -28,7 +100,7 @@ const TableView: React.FC<TableViewProps> = ({
   onSave, 
   onSaveToDB
 }) => {
-  const [sortField, setSortField] = useState<keyof ProcessedItem>('id');
+  const [sortField, setSortField] = useState<keyof ProcessedItem>('type');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -39,6 +111,30 @@ const TableView: React.FC<TableViewProps> = ({
 
   // Get unique types for filter
   const uniqueTypes = Array.from(new Set(items.map(item => item.type)));
+
+  // Type options for dropdown
+  const typeOptions = [
+    { value: 'text', label: 'Text' },
+    { value: 'button', label: 'Button' },
+    { value: 'icon', label: 'Icon' },
+    { value: 'table', label: 'Table' },
+    { value: 'chart', label: 'Chart' },
+    { value: 'image', label: 'Image' },
+    { value: 'link', label: 'Link' },
+    { value: 'form', label: 'Form' }
+  ];
+
+  // Data type options for dropdown
+  const dataTypeOptions = [
+    { value: 'string', label: 'String' },
+    { value: 'number', label: 'Number' },
+    { value: 'boolean', label: 'Boolean' },
+    { value: 'date', label: 'Date' },
+    { value: 'email', label: 'Email' },
+    { value: 'phone', label: 'Phone' },
+    { value: 'url', label: 'URL' },
+    { value: 'json', label: 'JSON' }
+  ];
 
   // Handle edit functions
   const handleEdit = () => {
@@ -79,7 +175,9 @@ const TableView: React.FC<TableViewProps> = ({
     
     setIsSavingToDB(true);
     try {
-      await onSaveToDB(items);
+      // Remove id and itemId fields from items before sending to database
+      const itemsWithoutId = items.map(({ id, itemId, ...item }) => item);
+      await onSaveToDB(itemsWithoutId);
     } catch (error) {
       console.error('Error saving to database:', error);
     } finally {
@@ -248,66 +346,60 @@ const TableView: React.FC<TableViewProps> = ({
 
       {/* Table */}
       <div className="table-wrapper">
-        <table className="data-table">
+        <table className={`data-table ${isEditing ? 'editing' : ''}`}>
           <thead>
             <tr>
               <th 
                 className="sortable"
-                onClick={() => handleSort('id')}
-              >
-                ID {getSortIcon('id')}
-              </th>
-              <th 
-                className="sortable"
                 onClick={() => handleSort('type')}
               >
-                Type {getSortIcon('type')}
+                Loại {getSortIcon('type')}
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('content')}
               >
-                Content {getSortIcon('content')}
+                Nội dung {getSortIcon('content')}
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('description')}
               >
-                Description {getSortIcon('description')}
-              </th>
-              <th 
-                className="sortable"
-                onClick={() => handleSort('database')}
-              >
-                Database {getSortIcon('database')}
+                Mô tả {getSortIcon('description')}
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('dataType')}
               >
-                Data Type {getSortIcon('dataType')}
+                Kiểu dữ liệu {getSortIcon('dataType')}
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('dbField')}
               >
-                DB Field {getSortIcon('dbField')}
+                Trường DB {getSortIcon('dbField')}
               </th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedItems.map((item, index) => (
               <tr key={item.id} className={index % 2 === 0 ? 'even' : 'odd'}>
-                <td className="id-cell">
-                  <span className="id-badge">#{item.id}</span>
-                </td>
                 <td className="type-cell">
-                  <span 
-                    className="type-badge"
-                    style={{ backgroundColor: getTypeColor(item.type) }}
-                  >
-                    {item.type}
-                  </span>
+                  {isEditing ? (
+                    <SimpleDropdown
+                      value={item.type}
+                      onChange={(value) => handleFieldChange(item.id, 'type', value)}
+                      options={typeOptions}
+                      getTypeColor={getTypeColor}
+                    />
+                  ) : (
+                    <span 
+                      className="type-badge"
+                      style={{ backgroundColor: getTypeColor(item.type) }}
+                    >
+                      {item.type}
+                    </span>
+                  )}
                 </td>
                 <td className="content-cell">
                   {isEditing ? (
@@ -318,8 +410,11 @@ const TableView: React.FC<TableViewProps> = ({
                       className="edit-input"
                     />
                   ) : (
-                    <div className="content-text" title={item.content}>
+                    <div className="content-text">
                       {item.content}
+                      <div className="custom-tooltip">
+                        {item.content}
+                      </div>
                     </div>
                   )}
                 </td>
@@ -332,20 +427,27 @@ const TableView: React.FC<TableViewProps> = ({
                       className="edit-input"
                     />
                   ) : (
-                    <div className="description-text" title={item.description}>
+                    <div className="description-text">
                       {item.description}
+                      <div className="custom-tooltip">
+                        {item.description}
+                      </div>
                     </div>
                   )}
                 </td>
-                <td className="database-cell">
-                  <span className="database-badge">
-                    {item.database}
-                  </span>
-                </td>
                 <td className="datatype-cell">
-                  <span className="datatype-badge" style={{ backgroundColor: getDataTypeColor(item.dataType || 'string') }}>
-                    {item.dataType || 'string'}
-                  </span>
+                  {isEditing ? (
+                    <SimpleDropdown
+                      value={item.dataType || 'string'}
+                      onChange={(value) => handleFieldChange(item.id, 'dataType', value)}
+                      options={dataTypeOptions}
+                      getTypeColor={getDataTypeColor}
+                    />
+                  ) : (
+                    <span className="datatype-badge" style={{ backgroundColor: getDataTypeColor(item.dataType || 'string') }}>
+                      {item.dataType || 'string'}
+                    </span>
+                  )}
                 </td>
                 <td className="dbfield-cell">
                   <span className="dbfield-text" title={item.dbField}>

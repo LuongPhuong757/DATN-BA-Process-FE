@@ -1,0 +1,29 @@
+/* Projects Screen */
+.projects-screen-container {
+  padding: var(--space-1);
+  background: var(--secondary-50);
+  min-height: 100vh;
+  max-width: 100%;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure full width for all child components */
+.projects-screen-container > * {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .projects-screen-container {
+    padding: var(--space-1);
+  }
+}
+
+@media (max-width: 480px) {
+  .projects-screen-container {
+    padding: 4px;
+  }
+}

@@ -1,5 +1,5 @@
-import { ProcessedItem } from '../components/shared/ResultDisplay';
-import { API_CONFIG, getApiUrl } from '../config/api';
+import { ProcessedItem, ProcessedItemWithoutId } from '../components/shared/ResultDisplay';
+import { getApiUrl } from '../config/api';
 
 // Interface for ChatGPT API request
 interface ChatGPTRequest {
@@ -31,39 +31,69 @@ interface ChatGPTResponse {
 const mockProcessedData: ProcessedItem[] = [
   {
     id: 1,
+    itemId: 1,
     content: '1',
     type: 'Text',
     database: 'order_db',
-    description: 'STT (Số thứ tự) của đơn hàng',
+    description: 'Order sequence number field, displays sequential order ID, used for order tracking and reference',
+    imageProcessingResultId: 1,
     dataType: 'number',
     dbField: 'order_number'
   },
   {
     id: 2,
-    content: 'Sales Report Q4 2024',
-    type: 'Table',
-    database: 'sales_db',
-    description: 'Quarterly sales performance data with revenue breakdown by region',
-    dataType: 'string',
-    dbField: 'report_title'
+    itemId: 2,
+    content: 'View Details',
+    type: 'Link',
+    database: 'navigation_db',
+    description: 'Clickable link to view order details, calls API /api/orders/details, shows loading spinner, redirects to Order Details page',
+    imageProcessingResultId: 1,
+    dataType: 'url',
+    dbField: 'details_link'
   },
   {
     id: 3,
-    content: '1500000',
-    type: 'Text',
-    database: 'sales_db',
-    description: 'Revenue amount in VND',
-    dataType: 'number',
-    dbField: 'revenue_amount'
+    itemId: 3,
+    content: 'Submit Order',
+    type: 'Button',
+    database: 'action_db',
+    description: 'Submit button for order processing, calls API /api/orders/submit, shows loading animation, redirects to Order Confirmation page',
+    imageProcessingResultId: 1,
+    dataType: 'string',
+    dbField: 'submit_action'
   },
   {
     id: 4,
+    itemId: 4,
     content: 'john.doe@company.com',
     type: 'Text',
     database: 'customer_db',
-    description: 'Customer email address',
+    description: 'Customer email address field, displays user contact information, used for order notifications and communication',
+    imageProcessingResultId: 1,
     dataType: 'email',
     dbField: 'customer_email'
+  },
+  {
+    id: 5,
+    itemId: 5,
+    content: 'Dashboard',
+    type: 'Link',
+    database: 'navigation_db',
+    description: 'Navigation menu item, calls API /api/dashboard, shows loading effect, navigates to Dashboard page with user statistics',
+    imageProcessingResultId: 1,
+    dataType: 'url',
+    dbField: 'dashboard_link'
+  },
+  {
+    id: 6,
+    itemId: 6,
+    content: '1500000',
+    type: 'Text',
+    database: 'sales_db',
+    description: 'Revenue amount field, displays monetary value in VND currency, used for financial reporting and calculations',
+    imageProcessingResultId: 1,
+    dataType: 'number',
+    dbField: 'revenue_amount'
   }
 ];
 
@@ -140,26 +170,50 @@ export class ChatGPTService {
       messages: [
         {
           role: 'system',
-          content: `You are an expert image analyzer. Extract the most important text content from the image.
+          content: `You are an expert image analyzer and UI/UX specialist. Extract the most important text content from the image with detailed descriptions.
 
           PRIORITY: Focus on:
           1. Text below or near buttons (especially red buttons)
           2. Table headers and key data
           3. Important labels and descriptions
+          4. Hyperlinks and clickable elements
+          5. Navigation elements and menu items
 
           Return results in this JSON format (MAX 10 items to avoid truncation):
           [
             {
+              "id": "actual_id_from_image",
               "content": "Exact text content",
-              "type": "Text",
-              "database": "text_content_db",
-              "description": "Brief location description",
-              "dataType": "string",
-              "dbField": "content_field"
+              "type": "Text|Button|Link|Icon|Table|Chart|Image|Form",
+              "database": "appropriate_database_name",
+              "description": "Detailed description including functionality and user interaction",
+              "dataType": "string|number|boolean|date|email|phone|url|json",
+              "dbField": "appropriate_field_name"
             }
           ]
 
-          IMPORTANT: For each text content, determine the appropriate database data type:
+          IMPORTANT FOR ID FIELD:
+          - Extract the actual ID/number from the image content
+          - If you see "1", "2", "3" etc. in the image, use that as the ID
+          - If you see order numbers, sequence numbers, or any numeric identifiers, use those
+          - Do NOT use sequential numbering (1,2,3...) unless that's what's actually in the image
+          - The ID should reflect the actual content visible in the image
+
+          DESCRIPTION GUIDELINES:
+          - For hyperlinks/links: Describe the action and destination. Example: "Click to navigate to user profile page, calls API /api/user/profile, shows loading spinner, redirects to User Profile page"
+          - For buttons: Describe the action and expected behavior. Example: "Submit button, calls API /api/orders/submit, shows loading animation, redirects to Order Confirmation page"
+          - For navigation: Describe the destination and transition. Example: "Menu item, calls API /api/dashboard, shows loading effect, navigates to Dashboard page"
+          - For forms: Describe the submission process. Example: "Login form submit, calls API /api/auth/login, shows loading spinner, redirects to Home page"
+          - For data fields: Describe the purpose and context. Example: "Order number field, displays sequential order ID, used for order tracking"
+          - For tables: Describe the data structure and purpose. Example: "Sales data table, displays quarterly revenue, calls API /api/sales/report for data"
+
+          API SUGGESTIONS:
+          - Use RESTful API naming conventions
+          - Suggest appropriate HTTP methods (GET, POST, PUT, DELETE)
+          - Include loading states and transitions
+          - Predict destination pages based on context
+
+          DATA TYPE GUIDELINES:
           - "string" for: names, emails, addresses, descriptions, labels, text content, titles
           - "number" for: prices, amounts, quantities, counts, percentages, IDs, STT (số thứ tự), order numbers, rankings
           - "boolean" for: yes/no, true/false, enabled/disabled, active/inactive, checked/unchecked
@@ -169,16 +223,22 @@ export class ChatGPTService {
           - "url" for: website links, URLs
           - "json" for: complex structured data
 
-          Pay special attention to:
-          - Numbers (including STT, order numbers, rankings) → "number"
-          - Sequential numbers → "number" 
-          - Currency amounts → "number"
-          - Percentages → "number"
-          - IDs and codes → "number" if numeric, "string" if alphanumeric
+          TYPE GUIDELINES:
+          - "Text" for: plain text content, labels, descriptions
+          - "Button" for: clickable buttons, action buttons
+          - "Link" for: hyperlinks, navigation links (use "url" as dataType)
+          - "Icon" for: icons, symbols, visual indicators
+          - "Table" for: data tables, lists, grids
+          - "Chart" for: graphs, charts, visualizations
+          - "Image" for: pictures, photos, graphics
+          - "Form" for: input fields, forms, controls
 
-          Also suggest appropriate database field name (dbField) based on content.
+          IMPORTANT: 
+          - If type is "Link", dataType should be "url" (not "string")
+          - If type is "Button", dataType should be "string" (not "url")
+          - Keep type and dataType separate and specific
 
-          Be concise but accurate. Focus on the most relevant text content.`
+          Be detailed and specific in descriptions. Focus on user interaction and system behavior.`
         },
         {
           role: 'user',
@@ -226,7 +286,7 @@ export class ChatGPTService {
       console.log('Parsed ChatGPT response:', parsedResults);
       console.log('Parsed ChatGPT response type:', typeof parsedResults);
       return parsedResults.map((item: any, index: number) => ({
-        id: index + 1,
+        id: item.id || index + 1,
         content: item.content || 'Unknown',
         type: item.type || 'Other',
         database: item.database || 'unknown_db',
@@ -264,11 +324,13 @@ export class ChatGPTService {
           if (jsonObjects.length > 0) {
             console.log('Successfully extracted', jsonObjects.length, 'valid objects');
             return jsonObjects.map((item: any, index: number) => ({
-              id: index + 1,
+              id: item.id || index + 1,
+              itemId: item.itemId || index + 1,
               content: item.content || 'Unknown',
               type: item.type || 'Other',
               database: item.database || 'unknown_db',
               description: item.description || 'No description available',
+              imageProcessingResultId: item.imageProcessingResultId || 0,
               dataType: item.dataType || 'string',
               dbField: item.dbField || 'content_field'
             }));
@@ -286,10 +348,12 @@ export class ChatGPTService {
           
           return contents.map((content, index) => ({
             id: index + 1,
+            itemId: index + 1,
             content: content,
             type: 'Text',
             database: 'text_content_db',
             description: 'Extracted from incomplete response',
+            imageProcessingResultId: 0,
             dataType: 'string',
             dbField: 'content_field'
           }));
@@ -315,7 +379,7 @@ export class ChatGPTService {
    * @param results - The results to save to database
    * @returns Promise with success status
    */
-  async saveToDatabase(results: ProcessedItem[]): Promise<{ success: boolean; message: string }> {
+  async saveToDatabase(results: ProcessedItemWithoutId[]): Promise<{ success: boolean; message: string }> {
     try {
       console.log('Saving to database:', results);
       
@@ -351,6 +415,63 @@ export class ChatGPTService {
       return {
         success: false,
         message: `Failed to save to database: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  /**
+   * Update project detail with edited results
+   * @param projectId - The ID of the project to update
+   * @param results - The edited results to save
+   * @returns Promise with success status
+   */
+  async updateProjectDetail(projectId: number, results: ProcessedItem[]): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`Updating project ${projectId} with edited results:`, results);
+      
+      // Prepare payload giống với saveToDatabase format
+      const payload = { 
+        results: results.map(item => ({
+          content: item.content,
+          type: item.type,
+          database: item.database,
+          description: item.description,
+          imageProcessingResultId: item.imageProcessingResultId,
+          dataType: item.dataType,
+          dbField: item.dbField
+        })),
+        timestamp: new Date().toISOString(),
+        source: 'image-processor-edit',
+        title: `Updated Image Processing Results - ${results.length} items`,
+        body: `Updated ${results.length} items from image analysis`
+      };
+
+      // Real API call to update project detail với PUT method
+      const response = await fetch(getApiUrl(`/posts/${projectId}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Update failed: ${response.status} - ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Update API Response:', data);
+      
+      return {
+        success: true,
+        message: `Successfully updated project ${projectId} with ${results.length} items`
+      };
+      
+    } catch (error) {
+      console.error('Error updating project detail:', error);
+      return {
+        success: false,
+        message: `Failed to update project: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }

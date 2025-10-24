@@ -135,21 +135,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isProcessi
           </div>
         )}
       </div>
-      
-      {isProcessing && (
-        <div className="processing-status">
-          <div className="status-content">
-            <div className="spinner"></div>
-            <div className="status-text">
-              <h4>Processing with AI...</h4>
-              <p>Extracting text content from your image</p>
-            </div>
-          </div>
-          <div className="progress-bar">
-            <div className="progress-fill"></div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

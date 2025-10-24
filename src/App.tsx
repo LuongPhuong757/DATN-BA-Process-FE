@@ -4,7 +4,7 @@ import UploadScreen from './components/upload/UploadScreen';
 import ProjectsScreen from './components/projects/ProjectsScreen';
 import ProjectDetailScreen from './components/project-detail/ProjectDetailScreen';
 import Navigation from './components/shared/Navigation';
-import { ProcessedItem } from './components/shared/ResultDisplay';
+import { ProcessedItem, ProcessedItemWithoutId } from './components/shared/ResultDisplay';
 import { Project } from './components/shared/ProjectList';
 import chatGPTService from './services/chatgptService';
 
@@ -73,7 +73,7 @@ function App() {
     }
   };
 
-  const handleSaveToDB = async (results: ProcessedItem[]) => {
+  const handleSaveToDB = async (results: ProcessedItemWithoutId[]) => {
     try {
       setDbMessage('');
       const response = await chatGPTService.saveToDatabase(results);
@@ -97,6 +97,10 @@ function App() {
     setCurrentView('project-detail');
   };
 
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setSelectedProject(updatedProject);
+  };
+
   const handleClearMessages = () => {
     setDbMessage('');
     setResults([]);
@@ -116,6 +120,7 @@ function App() {
         return (
           <ProjectDetailScreen 
             selectedProject={selectedProject}
+            onProjectUpdate={handleProjectUpdate}
           />
         );
       

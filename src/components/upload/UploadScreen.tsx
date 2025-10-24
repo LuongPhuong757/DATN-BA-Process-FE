@@ -3,7 +3,7 @@ import ImageUploader from './ImageUploader';
 import ConnectionStatus from '../shared/ConnectionStatus';
 import TableView from '../shared/TableView';
 import MessageDisplay from '../shared/MessageDisplay';
-import { ProcessedItem } from '../shared/ResultDisplay';
+import { ProcessedItem, ProcessedItemWithoutId } from '../shared/ResultDisplay';
 
 interface UploadScreenProps {
   isProcessing: boolean;
@@ -15,7 +15,7 @@ interface UploadScreenProps {
   onImageUpload: (file: File) => Promise<void>;
   onConnectionChange: (connected: boolean) => void;
   onSaveResults: (updatedResults: ProcessedItem[]) => Promise<void>;
-  onSaveToDB: (results: ProcessedItem[]) => Promise<void>;
+  onSaveToDB: (results: ProcessedItemWithoutId[]) => Promise<void>;
   onClearMessages: () => void;
 }
 

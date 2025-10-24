@@ -3,10 +3,22 @@ import './ResultDisplay.css';
 
 export interface ProcessedItem {
   id: number;
+  itemId: number;
   content: string;
   type: string;
   database: string;
   description: string;
+  imageProcessingResultId: number;
+  dataType?: string;
+  dbField?: string;
+}
+
+export interface ProcessedItemWithoutId {
+  content: string;
+  type: string;
+  database: string;
+  description: string;
+  imageProcessingResultId: number;
   dataType?: string;
   dbField?: string;
 }
@@ -15,7 +27,7 @@ interface ResultDisplayProps {
   results: ProcessedItem[];
   isLoading: boolean;
   onSave?: (updatedResults: ProcessedItem[]) => void;
-  onSaveToDB?: (results: ProcessedItem[]) => void;
+  onSaveToDB?: (results: ProcessedItemWithoutId[]) => void;
   isReadOnly?: boolean;
 }
 
@@ -63,7 +75,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
     
     setIsSavingToDB(true);
     try {
-      await onSaveToDB(results);
+      // Remove id and itemId fields from results before sending to database
+      const resultsWithoutId = results.map(({ id, itemId, ...item }) => item);
+      await onSaveToDB(resultsWithoutId);
     } catch (error) {
       console.error('Error saving to database:', error);
     } finally {

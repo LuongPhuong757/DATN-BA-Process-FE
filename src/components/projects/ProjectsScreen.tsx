@@ -1,5 +1,6 @@
 import React from 'react';
 import ProjectList, { Project } from '../shared/ProjectList';
+import './ProjectsScreen.css';
 
 interface ProjectsScreenProps {
   onBackToUpload: () => void;
@@ -11,10 +12,12 @@ const ProjectsScreen: React.FC<ProjectsScreenProps> = ({
   onViewProject
 }) => {
   return (
-    <ProjectList 
-      onBackToUpload={onBackToUpload}
-      onViewProject={onViewProject}
-    />
+    <div className="projects-screen-container">
+      <ProjectList 
+        onBackToUpload={onBackToUpload}
+        onViewProject={onViewProject}
+      />
+    </div>
   );
 };
 

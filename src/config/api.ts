@@ -15,6 +15,7 @@ export const API_CONFIG = {
     SAVE_TO_DATABASE: '/api/save-to-database',
     GET_PROJECTS: '/api/projects',
     GET_PROJECT_BY_ID: '/api/projects',
+    UPDATE_POST: '/api/posts',
     
     // OpenAI API
     OPENAI_CHAT_COMPLETIONS: 'https://api.openai.com/v1/chat/completions',

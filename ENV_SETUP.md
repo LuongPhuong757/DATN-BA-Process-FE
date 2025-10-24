@@ -41,3 +41,5 @@ REACT_APP_ENVIRONMENT=production
 - Never commit your `.env` file to version control
 - Keep your OpenAI API key secure
 - Use different API keys for development and production
+
+
