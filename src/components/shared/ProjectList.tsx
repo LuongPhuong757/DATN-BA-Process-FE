@@ -173,7 +173,7 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
               <div className="items-list">
                 {project.processedItems && project.processedItems.length > 0 ? (
                   <>
-                    {project.processedItems.slice(0, 5).map((item) => (
+                    {project.processedItems.map((item) => (
                       <div key={item.id} className="item-preview">
                         <div 
                           className="item-type-badge"
@@ -184,11 +184,6 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
                         <span className="item-content">{item.content}</span>
                       </div>
                     ))}
-                    {project.processedItems.length > 5 && (
-                      <div className="more-items">
-                        +{project.processedItems.length - 5} more items
-                      </div>
-                    )}
                   </>
                 ) : (
                   <div className="no-items">

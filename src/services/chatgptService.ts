@@ -24,78 +24,13 @@ interface ChatGPTResponse {
     message: {
       content: string;
     };
+    finish_reason?: string;
   }>;
+  usage?: {
+    total_tokens?: number;
+    completion_tokens?: number;
+  };
 }
-
-// Mock data for demonstration (replace with actual API call)
-const mockProcessedData: ProcessedItem[] = [
-  {
-    id: 1,
-    itemId: 1,
-    content: '1',
-    type: 'Text',
-    database: 'order_db',
-    description: 'Order sequence number field, displays sequential order ID, used for order tracking and reference',
-    imageProcessingResultId: 1,
-    dataType: 'number',
-    dbField: 'order_number'
-  },
-  {
-    id: 2,
-    itemId: 2,
-    content: 'View Details',
-    type: 'Link',
-    database: 'navigation_db',
-    description: 'Clickable link to view order details, calls API /api/orders/details, shows loading spinner, redirects to Order Details page',
-    imageProcessingResultId: 1,
-    dataType: 'url',
-    dbField: 'details_link'
-  },
-  {
-    id: 3,
-    itemId: 3,
-    content: 'Submit Order',
-    type: 'Button',
-    database: 'action_db',
-    description: 'Submit button for order processing, calls API /api/orders/submit, shows loading animation, redirects to Order Confirmation page',
-    imageProcessingResultId: 1,
-    dataType: 'string',
-    dbField: 'submit_action'
-  },
-  {
-    id: 4,
-    itemId: 4,
-    content: 'john.doe@company.com',
-    type: 'Text',
-    database: 'customer_db',
-    description: 'Customer email address field, displays user contact information, used for order notifications and communication',
-    imageProcessingResultId: 1,
-    dataType: 'email',
-    dbField: 'customer_email'
-  },
-  {
-    id: 5,
-    itemId: 5,
-    content: 'Dashboard',
-    type: 'Link',
-    database: 'navigation_db',
-    description: 'Navigation menu item, calls API /api/dashboard, shows loading effect, navigates to Dashboard page with user statistics',
-    imageProcessingResultId: 1,
-    dataType: 'url',
-    dbField: 'dashboard_link'
-  },
-  {
-    id: 6,
-    itemId: 6,
-    content: '1500000',
-    type: 'Text',
-    database: 'sales_db',
-    description: 'Revenue amount field, displays monetary value in VND currency, used for financial reporting and calculations',
-    imageProcessingResultId: 1,
-    dataType: 'number',
-    dbField: 'revenue_amount'
-  }
-];
 
 export class ChatGPTService {
   private apiKey: string;
@@ -117,27 +52,13 @@ export class ChatGPTService {
    * @returns Promise with processed results
    */
   async processImage(imageFile: File): Promise<ProcessedItem[]> {
-    try {
-      if (!this.isValidApiKey) {
-        console.log('Using mock data - no valid API key configured');
-        // Fallback to mock data if no valid API key
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        return mockProcessedData;
-      }
-
-      console.log('Using real ChatGPT API');
-      // Use real ChatGPT API if available
-      const base64Image = await this.convertFileToBase64(imageFile);
-      return await this.callChatGPTAPI(base64Image);
-      
-    } catch (error) {
-      console.error('Error processing image:', error);
-      
-      // Fallback to mock data on error
-      console.log('Falling back to mock data due to error:', error);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      return mockProcessedData;
+    if (!this.isValidApiKey) {
+      throw new Error('OpenAI API key not configured. Please add REACT_APP_OPENAI_API_KEY to your .env file.');
     }
+
+    console.log('Processing image with ChatGPT API');
+    const base64Image = await this.convertFileToBase64(imageFile);
+    return await this.callChatGPTAPI(base64Image);
   }
 
   /**
@@ -159,93 +80,42 @@ export class ChatGPTService {
   /**
    * Call ChatGPT API with image
    */
-  private async callChatGPTAPI(base64Image: string): Promise<ProcessedItem[]> {
+  private async callChatGPTAPI(base64Image: string, retryCount: number = 0): Promise<ProcessedItem[]> {
     if (!this.apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
     const requestBody: ChatGPTRequest = {
       model: 'gpt-4.1-mini',
-      
       messages: [
         {
           role: 'system',
-          content: `You are an expert image analyzer and UI/UX specialist. Extract the most important text content from the image with detailed descriptions.
+          content: `You are a Business Analyst (BA) analyzing a UI/UX interface. 
 
-          PRIORITY: Focus on:
-          1. Text below or near buttons (especially red buttons)
-          2. Table headers and key data
-          3. Important labels and descriptions
-          4. Hyperlinks and clickable elements
-          5. Navigation elements and menu items
+Your task: Look at the image from a BA perspective, count all red boxes, and extract complete information for each red box.
 
-          Return results in this JSON format (MAX 10 items to avoid truncation):
-          [
-            {
-              "id": "actual_id_from_image",
-              "content": "Exact text content",
-              "type": "Text|Button|Link|Icon|Table|Chart|Image|Form",
-              "database": "appropriate_database_name",
-              "description": "Detailed description including functionality and user interaction",
-              "dataType": "string|number|boolean|date|email|phone|url|json",
-              "dbField": "appropriate_field_name"
-            }
-          ]
+Return ONLY a valid JSON array in this exact format:
+[
+  {
+    "id": 1,
+    "order": 1,
+    "content": "Content from red box #1",
+    "type": "Input|Button|Label|Text|Link|Icon|Table|Form",
+    "database": "appropriate_database_name",
+    "description": "Business description: what this element does, its purpose, and expected behavior",
+    "dataType": "string|number|email|phone|url|date|boolean|json",
+    "dbField": "snake_case_field_name"
+  }
+]
 
-          IMPORTANT FOR ID FIELD:
-          - Extract the actual ID/number from the image content
-          - If you see "1", "2", "3" etc. in the image, use that as the ID
-          - If you see order numbers, sequence numbers, or any numeric identifiers, use those
-          - Do NOT use sequential numbering (1,2,3...) unless that's what's actually in the image
-          - The ID should reflect the actual content visible in the image
-
-          DESCRIPTION GUIDELINES:
-          - For hyperlinks/links: Describe the action and destination. Example: "Click to navigate to user profile page, calls API /api/user/profile, shows loading spinner, redirects to User Profile page"
-          - For buttons: Describe the action and expected behavior. Example: "Submit button, calls API /api/orders/submit, shows loading animation, redirects to Order Confirmation page"
-          - For navigation: Describe the destination and transition. Example: "Menu item, calls API /api/dashboard, shows loading effect, navigates to Dashboard page"
-          - For forms: Describe the submission process. Example: "Login form submit, calls API /api/auth/login, shows loading spinner, redirects to Home page"
-          - For data fields: Describe the purpose and context. Example: "Order number field, displays sequential order ID, used for order tracking"
-          - For tables: Describe the data structure and purpose. Example: "Sales data table, displays quarterly revenue, calls API /api/sales/report for data"
-
-          API SUGGESTIONS:
-          - Use RESTful API naming conventions
-          - Suggest appropriate HTTP methods (GET, POST, PUT, DELETE)
-          - Include loading states and transitions
-          - Predict destination pages based on context
-
-          DATA TYPE GUIDELINES:
-          - "string" for: names, emails, addresses, descriptions, labels, text content, titles
-          - "number" for: prices, amounts, quantities, counts, percentages, IDs, STT (số thứ tự), order numbers, rankings
-          - "boolean" for: yes/no, true/false, enabled/disabled, active/inactive, checked/unchecked
-          - "date" for: dates, timestamps, schedules, deadlines
-          - "email" for: email addresses
-          - "phone" for: phone numbers
-          - "url" for: website links, URLs
-          - "json" for: complex structured data
-
-          TYPE GUIDELINES:
-          - "Text" for: plain text content, labels, descriptions
-          - "Button" for: clickable buttons, action buttons
-          - "Link" for: hyperlinks, navigation links (use "url" as dataType)
-          - "Icon" for: icons, symbols, visual indicators
-          - "Table" for: data tables, lists, grids
-          - "Chart" for: graphs, charts, visualizations
-          - "Image" for: pictures, photos, graphics
-          - "Form" for: input fields, forms, controls
-
-          IMPORTANT: 
-          - If type is "Link", dataType should be "url" (not "string")
-          - If type is "Button", dataType should be "string" (not "url")
-          - Keep type and dataType separate and specific
-
-          Be detailed and specific in descriptions. Focus on user interaction and system behavior.`
+The array length MUST equal the EXACT number of red boxes you counted.`
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Please analyze this image and provide structured information about the content.'
+              text: `Hãy nhìn hình ảnh dưới góc độ của BA, có bao nhiêu ô màu đỏ thì lấy ra đầy đủ thông tin của các ô đỏ đó.`
             },
             {
               type: 'image_url',
@@ -256,7 +126,7 @@ export class ChatGPTService {
           ]
         }
       ],
-      max_tokens: 500,
+      max_tokens: 4000,
       temperature: 0.1
     };
 
@@ -270,101 +140,151 @@ export class ChatGPTService {
     });
 
     if (!response.ok) {
-      throw new Error(`ChatGPT API error: ${response.status}`);
+      // Try to parse error response from API
+      let errorMessage = `ChatGPT API error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          const apiError = errorData.error;
+          errorMessage = apiError.message || errorMessage;
+          
+          // Add error type and code for better error handling
+          if (apiError.type) {
+            errorMessage = `${apiError.type}: ${errorMessage}`;
+          }
+          if (apiError.code) {
+            errorMessage = `${errorMessage} (Code: ${apiError.code})`;
+          }
+        }
+      } catch (e) {
+        // If error response is not JSON, use status text
+        errorMessage = `ChatGPT API error: ${response.status} - ${response.statusText || errorMessage}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const data: ChatGPTResponse = await response.json();
-    const content = data.choices[0]?.message?.content;
+    const choice = data.choices[0];
+    const content = choice?.message?.content;
+    const finishReason = choice?.finish_reason;
     
     if (!content) {
       throw new Error('No response content from ChatGPT');
     }
 
-    // Parse the JSON response from ChatGPT
+    // Check if response was truncated due to token limit
+    if (finishReason === 'length') {
+      console.warn('WARNING: Response was truncated due to token limit. Consider increasing max_tokens or splitting the analysis.');
+      console.log(`Used tokens: ${data.usage?.total_tokens || 'unknown'}, Completion tokens: ${data.usage?.completion_tokens || 'unknown'}`);
+    }
+
+    // Log raw content for debugging (first 500 chars)
+    console.log('Raw response content (first 500 chars):', content.substring(0, 500));
+
+    // Extract JSON from response (handle markdown code blocks if present)
+    let jsonContent = content.trim();
+    
+    // Remove markdown code blocks if present
+    if (jsonContent.includes('```')) {
+      // Remove opening markdown code block
+      jsonContent = jsonContent.replace(/^```(?:json|JSON)?\s*\n?/m, '');
+      // Remove closing markdown code block
+      jsonContent = jsonContent.replace(/\n?```\s*$/m, '');
+      // Also handle cases where there might be text before/after
+      const codeBlockMatch = jsonContent.match(/```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```/);
+      if (codeBlockMatch) {
+        jsonContent = codeBlockMatch[1].trim();
+      }
+    }
+
+    // Try to extract JSON array from response
+    let parsedResults;
     try {
-      const parsedResults = JSON.parse(content);
-      console.log('Parsed ChatGPT response:', parsedResults);
-      console.log('Parsed ChatGPT response type:', typeof parsedResults);
-      return parsedResults.map((item: any, index: number) => ({
-        id: item.id || index + 1,
-        content: item.content || 'Unknown',
-        type: item.type || 'Other',
-        database: item.database || 'unknown_db',
-        description: item.description || 'No description available',
-        dataType: item.dataType || 'string',
-        dbField: item.dbField || 'content_field'
-      }));
-    } catch (parseError) {
-      console.error('Error parsing ChatGPT response:', parseError);
-      console.log('Raw content that failed to parse:', content);
+      // First try: parse the entire content
+      parsedResults = JSON.parse(jsonContent);
+    } catch (e) {
+      console.log('First parse attempt failed, trying to extract JSON array...');
       
-      // Try to extract partial content if JSON is incomplete
-      try {
-        console.log('Attempting to fix incomplete JSON response...');
-        
-        // Look for complete JSON objects in the response
-        const jsonObjects = [];
-        const regex = /\{[^{}]*"content"[^{}]*"type"[^{}]*"database"[^{}]*"description"[^{}]*\}/g;
-        const matches = content.match(regex);
-        
-        if (matches && matches.length > 0) {
-          console.log('Found', matches.length, 'complete JSON objects');
-          
-          for (const match of matches) {
-            try {
-              const obj = JSON.parse(match);
-              if (obj.content && obj.type && obj.database && obj.description) {
-                jsonObjects.push(obj);
-              }
-            } catch (e) {
-              console.log('Failed to parse object:', match);
-            }
-          }
-          
-          if (jsonObjects.length > 0) {
-            console.log('Successfully extracted', jsonObjects.length, 'valid objects');
-            return jsonObjects.map((item: any, index: number) => ({
-              id: item.id || index + 1,
-              itemId: item.itemId || index + 1,
-              content: item.content || 'Unknown',
-              type: item.type || 'Other',
-              database: item.database || 'unknown_db',
-              description: item.description || 'No description available',
-              imageProcessingResultId: item.imageProcessingResultId || 0,
-              dataType: item.dataType || 'string',
-              dbField: item.dbField || 'content_field'
-            }));
+      // Second try: find JSON array pattern (more flexible regex)
+      // This regex looks for array starting with [ and ending with ]
+      const jsonArrayPattern = /(\[[\s\S]*\])/;
+      const jsonMatch = jsonContent.match(jsonArrayPattern);
+      
+      if (jsonMatch) {
+        try {
+          parsedResults = JSON.parse(jsonMatch[1]);
+          console.log('Successfully extracted JSON array from response');
+        } catch (parseError) {
+          console.error('Failed to parse extracted JSON array:', parseError);
+          // Try to fix common JSON issues
+          let fixedJson = jsonMatch[1];
+          // Remove trailing commas before closing brackets/braces
+          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+          try {
+            parsedResults = JSON.parse(fixedJson);
+            console.log('Successfully parsed after fixing trailing commas');
+          } catch (fixError) {
+            console.error('Failed to parse even after fixing:', fixError);
+            console.error('Problematic JSON content:', fixedJson.substring(0, 1000));
+            throw new Error(`Could not parse JSON from response. Raw content preview: ${content.substring(0, 200)}...`);
           }
         }
+      } else {
+        // Third try: look for any JSON object/array in the content
+        const anyJsonPattern = /(\{[\s\S]*\}|\[[\s\S]*\])/;
+        const anyJsonMatch = jsonContent.match(anyJsonPattern);
         
-        // Fallback: try to extract just the content values
-        const contentMatches = content.match(/"content":\s*"([^"]+)"/g);
-        if (contentMatches && contentMatches.length > 0) {
-          console.log('Extracting content values from incomplete response...');
-          const contents = contentMatches.map(match => {
-            const contentMatch = match.match(/"content":\s*"([^"]+)"/);
-            return contentMatch ? contentMatch[1] : 'Unknown';
-          });
-          
-          return contents.map((content, index) => ({
-            id: index + 1,
-            itemId: index + 1,
-            content: content,
-            type: 'Text',
-            database: 'text_content_db',
-            description: 'Extracted from incomplete response',
-            imageProcessingResultId: 0,
-            dataType: 'string',
-            dbField: 'content_field'
-          }));
+        if (anyJsonMatch) {
+          try {
+            parsedResults = JSON.parse(anyJsonMatch[1]);
+            console.log('Found and parsed JSON object/array');
+          } catch (parseError) {
+            console.error('Failed to parse found JSON:', parseError);
+            throw new Error(`Could not parse JSON from response. Content preview: ${content.substring(0, 300)}...`);
+          }
+        } else {
+          console.error('No JSON array or object found in response');
+          console.error('Full response content:', content);
+          throw new Error(`Could not find JSON in response. Response starts with: ${content.substring(0, 200)}...`);
         }
-        
-      } catch (partialError) {
-        console.error('Failed to extract partial response:', partialError);
+      }
+    }
+    
+    if (!Array.isArray(parsedResults)) {
+      // If result is an object, try to extract array from it
+      if (typeof parsedResults === 'object' && parsedResults !== null) {
+        // Check if it's an object with a results/items/data array
+        const possibleArrayKeys = ['results', 'items', 'data', 'array'];
+        for (const key of possibleArrayKeys) {
+          if (Array.isArray(parsedResults[key])) {
+            console.log(`Found array in key: ${key}`);
+            parsedResults = parsedResults[key];
+            break;
+          }
+        }
       }
       
-      throw new Error('Invalid response format from ChatGPT');
+      if (!Array.isArray(parsedResults)) {
+        console.error('Parsed result is not an array:', parsedResults);
+        throw new Error(`Response is not an array. Got: ${typeof parsedResults}`);
+      }
     }
+
+    const results = parsedResults.map((item: any, index: number) => ({
+      id: item.id || index + 1,
+      itemId: item.itemId || index + 1,
+      order: item.order || index + 1,
+      content: item.content || 'Unknown',
+      type: item.type || 'Text',
+      database: item.database || 'unknown_db',
+      description: item.description || 'No description',
+      imageProcessingResultId: item.imageProcessingResultId || 0,
+      dataType: item.dataType || 'string',
+      dbField: item.dbField || 'content_field'
+    }));
+
+    console.log(`Successfully processed ${results.length} red boxes from image`);
+    return results;
   }
 
   /**
