@@ -37,7 +37,7 @@ const SimpleDropdown: React.FC<SimpleDropdownProps> = ({
   };
 
   return (
-    <div className="simple-dropdown" ref={dropdownRef}>
+    <div className={`simple-dropdown ${isOpen ? 'dropdown-open' : ''}`} ref={dropdownRef}>
       <div 
         className="dropdown-trigger"
         onClick={() => setIsOpen(!isOpen)}

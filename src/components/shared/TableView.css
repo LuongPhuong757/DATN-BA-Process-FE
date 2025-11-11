@@ -178,6 +178,11 @@
 .simple-dropdown {
   position: relative;
   width: 100%;
+  z-index: 10000;
+}
+
+.simple-dropdown.dropdown-open {
+  z-index: 10001;
 }
 
 .dropdown-trigger {
@@ -220,8 +225,9 @@
   border: 1px solid var(--primary-300);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
-  z-index: 9999;
+  z-index: 10001;
   overflow: hidden;
+  margin-top: 4px;
   
   /* Slide down animation */
   max-height: 0;
@@ -363,6 +369,12 @@
   overflow-y: visible;
   max-height: 75vh;
   width: 100%;
+  position: relative;
+}
+
+.data-table.editing ~ * {
+  position: relative;
+  z-index: 1;
 }
 
 .table-wrapper::-webkit-scrollbar {
@@ -436,8 +448,14 @@
   vertical-align: middle;
 }
 
+.data-table.editing td.type-cell,
+.data-table.editing td.datatype-cell {
+  overflow: visible;
+}
+
 .data-table tbody tr {
   transition: all var(--transition-fast);
+  position: relative;
 }
 
 /* Disabled row hover effect */
@@ -487,6 +505,12 @@
   width: 100px;
   overflow: visible;
   position: relative;
+  z-index: 1;
+}
+
+.data-table.editing .type-cell {
+  overflow: visible;
+  z-index: auto;
 }
 
 .type-badge {
@@ -606,6 +630,14 @@
 
 .datatype-cell {
   width: 100px;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.data-table.editing .datatype-cell {
+  overflow: visible;
+  z-index: auto;
 }
 
 .datatype-badge {
