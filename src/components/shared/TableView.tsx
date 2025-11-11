@@ -257,6 +257,16 @@ const TableView: React.FC<TableViewProps> = ({
     return sortDirection === 'asc' ? '↑' : '↓';
   };
 
+  const formatDescription = (text: string) => {
+    if (!text) return '';
+    return text.split('.').map((part, index, array) => {
+      if (index === array.length - 1 && part.trim() === '') {
+        return '';
+      }
+      return index < array.length - 1 ? part + '.' : part;
+    }).filter(part => part.trim() !== '').join('.\n');
+  };
+
   if (isLoading) {
     return (
       <div className="table-loading">
@@ -420,18 +430,15 @@ const TableView: React.FC<TableViewProps> = ({
                 </td>
                 <td className="description-cell">
                   {isEditing ? (
-                    <input
-                      type="text"
+                    <textarea
                       value={item.description}
                       onChange={(e) => handleFieldChange(item.id, 'description', e.target.value)}
                       className="edit-input"
+                      rows={3}
                     />
                   ) : (
                     <div className="description-text">
-                      {item.description}
-                      <div className="custom-tooltip">
-                        {item.description}
-                      </div>
+                      {formatDescription(item.description)}
                     </div>
                   )}
                 </td>

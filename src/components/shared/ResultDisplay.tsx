@@ -84,6 +84,16 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
       setIsSavingToDB(false);
     }
   };
+
+  const formatDescription = (text: string) => {
+    if (!text) return '';
+    return text.split('.').map((part, index, array) => {
+      if (index === array.length - 1 && part.trim() === '') {
+        return '';
+      }
+      return index < array.length - 1 ? part + '.' : part;
+    }).filter(part => part.trim() !== '').join('.\n');
+  };
   if (isLoading) {
     return (
       <div className="result-display">
@@ -242,14 +252,16 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
                   </td>
                   <td className="description-cell">
                     {isEditing ? (
-                      <input
-                        type="text"
+                      <textarea
                         value={item.description}
                         onChange={(e) => handleFieldChange(item.id, 'description', e.target.value)}
                         className="edit-input"
+                        rows={3}
                       />
                     ) : (
-                      item.description
+                      <div className="description-text">
+                        {formatDescription(item.description)}
+                      </div>
                     )}
                   </td>
                 </tr>

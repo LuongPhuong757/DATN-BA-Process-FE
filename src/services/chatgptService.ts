@@ -102,11 +102,31 @@ Return ONLY a valid JSON array in this exact format:
     "content": "Content from red box #1",
     "type": "Input|Button|Label|Text|Link|Icon|Table|Form",
     "database": "appropriate_database_name",
-    "description": "Business description: what this element does, its purpose, and expected behavior",
+    "description": "Mô tả nghiệp vụ bằng tiếng Việt: phần tử này làm gì, mục đích và hành vi mong đợi",
     "dataType": "string|number|email|phone|url|date|boolean|json",
     "dbField": "snake_case_field_name"
   }
 ]
+
+IMPORTANT: The "description" field MUST be written in Vietnamese (tiếng Việt) and follow these specific formats based on the element type:
+
+- If type is "Label" or "Text": "Hiển thị label '[nội dung label]'" - describe what text is displayed, its purpose, and any formatting requirements.
+
+- If type is "Button": "Hiển thị button như mock up" - describe the button's label, action, style (primary/secondary/outline), size, and what happens when clicked. Include any validation or confirmation steps if applicable.
+
+- If type is "Select" or "Dropdown": "Hiển thị pulldown+icon sổ lên/sổ xuống như mock up. Pulldown gồm các giá trị: {[danh sách các giá trị]}." - list all available options, default value, whether it's searchable, multi-select, and any dependencies on other fields.
+
+- For "Input" fields: Describe the input type (text, number, email, etc.), placeholder text, validation rules, max length, format requirements, and any auto-complete or suggestions.
+
+- For "Table": Describe the columns, sorting capabilities, pagination, filtering options, and any row actions.
+
+- For "Form": Describe the form structure, required fields, validation rules, submit behavior, and error handling.
+
+- For "Link": Describe the link text, destination, whether it opens in new tab, and any special styling.
+
+- For "Icon": Describe the icon type, its meaning, size, color, and any interactive behavior (hover, click).
+
+Make the description detailed and comprehensive so that developers and testers can understand exactly what needs to be implemented. Include all relevant specifications that are commonly used in similar systems. Be specific about behavior, validation, styling, and user interactions.
 
 The array length MUST equal the EXACT number of red boxes you counted.`
         },
