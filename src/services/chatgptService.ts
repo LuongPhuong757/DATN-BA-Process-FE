@@ -317,25 +317,42 @@ The array length MUST equal the EXACT number of red boxes you counted.`
   /**
    * Save all results to database via API
    * @param results - The results to save to database
+   * @param screenId - The screen ID to associate with the results
    * @returns Promise with success status
    */
-  async saveToDatabase(results: ProcessedItemWithoutId[]): Promise<{ success: boolean; message: string }> {
+  async saveToDatabase(results: ProcessedItemWithoutId[], screenId: number): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('Saving to database:', results);
+      console.log('Saving to database:', results, 'screenId:', screenId);
+      
+      // Format results with stt (số thứ tự)
+      const formattedResults = results.map((item, index) => ({
+        stt: index + 1,
+        content: item.content,
+        type: item.type,
+        database: item.database,
+        description: item.description,
+        dataType: item.dataType || 'string',
+        dbField: item.dbField || 'field_name'
+      }));
+      
+      // Prepare payload according to new API format
+      const payload = {
+        title: 'Image Processing Title',
+        body: `Body content text - Processed ${results.length} items from image analysis`,
+        source: 'image_source',
+        timestamp: new Date().toISOString(),
+        screenId: screenId,
+        results: formattedResults
+      };
       
       // Real API call to save data to database
       const response = await fetch(getApiUrl('/posts'), {
         method: 'POST',
         headers: {
+          'accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          results,
-          timestamp: new Date().toISOString(),
-          source: 'image-processor',
-          title: `Image Processing Results - ${results.length} items`,
-          body: `Processed ${results.length} items from image analysis`
-        })
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {
@@ -347,7 +364,7 @@ The array length MUST equal the EXACT number of red boxes you counted.`
       
       return {
         success: true,
-        message: `Successfully saved ${results.length} items to database (ID: ${data.id})`
+        message: `Successfully saved ${results.length} items to database (ID: ${data.id || 'N/A'})`
       };
       
     } catch (error) {
@@ -522,6 +539,174 @@ The array length MUST equal the EXACT number of red boxes you counted.`
       
     } catch (error) {
       console.error('Error fetching projects:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get projects and screens from backend API
+   * @returns Promise with array of project-screen pairs
+   */
+  async getProjectsScreens(): Promise<any[]> {
+    try {
+      console.log('Fetching projects and screens');
+      
+      const response = await fetch(getApiUrl('/projects/screens'), {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch projects/screens: ${response.status} - ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Fetched projects/screens:', data);
+      
+      return Array.isArray(data) ? data : [data];
+      
+    } catch (error) {
+      console.error('Error fetching projects/screens:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Register a new project with screens
+   * @param nameProject - Project name
+   * @param screens - Array of screen names
+   * @returns Promise with response data
+   */
+  async registerProject(nameProject: string, screens: string[]): Promise<any> {
+    try {
+      console.log('Registering project:', nameProject, screens);
+      
+      const response = await fetch(getApiUrl('/projects'), {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nameProject: nameProject,
+          screens: screens
+        })
+      });
+      
+      if (!response.ok) {
+        // Try to parse error response
+        let errorMessage = `Failed to register project: ${response.status} - ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // If error response is not JSON, use default message
+        }
+        const error = new Error(errorMessage);
+        (error as any).statusCode = response.status;
+        throw error;
+      }
+      
+      const data = await response.json();
+      console.log('Registered project:', data);
+      
+      return data;
+      
+    } catch (error) {
+      console.error('Error registering project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a screen
+   * @param screenId - Screen ID
+   * @returns Promise with response data
+   */
+  async deleteScreen(screenId: number): Promise<any> {
+    try {
+      console.log('Deleting screen:', screenId);
+      
+      const response = await fetch(getApiUrl(`/projects/screens/${screenId}`), {
+        method: 'DELETE',
+        headers: {
+          'accept': '*/*',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete screen: ${response.status} - ${response.statusText}`);
+      }
+      
+      // DELETE might not return JSON
+      let data = null;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      }
+      
+      console.log('Deleted screen:', screenId);
+      return data;
+      
+    } catch (error) {
+      console.error('Error deleting screen:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a screen name
+   * @param screenId - Screen ID
+   * @param screenName - New screen name
+   * @returns Promise with response data
+   */
+  async updateScreen(screenId: number, screenName: string): Promise<any> {
+    try {
+      console.log('Updating screen:', screenId, 'to:', screenName);
+      
+      const response = await fetch(getApiUrl(`/projects/screens/${screenId}`), {
+        method: 'PUT',
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          screenName: screenName
+        })
+      });
+      
+      if (!response.ok) {
+        // Try to parse error response
+        let errorMessage = `Failed to update screen: ${response.status} - ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // If error response is not JSON, use default message
+        }
+        const error = new Error(errorMessage);
+        (error as any).statusCode = response.status;
+        throw error;
+      }
+      
+      const data = await response.json();
+      console.log('Updated screen:', data);
+      
+      return data;
+      
+    } catch (error) {
+      console.error('Error updating screen:', error);
       throw error;
     }
   }

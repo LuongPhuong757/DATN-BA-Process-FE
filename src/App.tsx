@@ -3,6 +3,7 @@ import './App.css';
 import UploadScreen from './components/upload/UploadScreen';
 import ProjectsScreen from './components/projects/ProjectsScreen';
 import ProjectDetailScreen from './components/project-detail/ProjectDetailScreen';
+import ProjectManagementScreen from './components/project-management/ProjectManagementScreen';
 import Sidebar from './components/shared/Sidebar';
 import { ProcessedItem, ProcessedItemWithoutId } from './components/shared/ResultDisplay';
 import { Project } from './components/shared/ProjectList';
@@ -15,7 +16,7 @@ function App() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [saveMessage, setSaveMessage] = useState<string>('');
   const [dbMessage, setDbMessage] = useState<string>('');
-  const [currentView, setCurrentView] = useState<'upload' | 'projects' | 'project-detail'>('upload');
+  const [currentView, setCurrentView] = useState<'upload' | 'projects' | 'project-detail' | 'project-management'>('upload');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const handleImageUpload = async (file: File) => {
@@ -52,7 +53,7 @@ function App() {
     }
   };
 
-  const handleNavigate = (view: 'upload' | 'projects') => {
+  const handleNavigate = (view: 'upload' | 'projects' | 'project-management') => {
     setCurrentView(view);
     if (view === 'upload') {
       setSelectedProject(null);
@@ -73,10 +74,10 @@ function App() {
     }
   };
 
-  const handleSaveToDB = async (results: ProcessedItemWithoutId[]) => {
+  const handleSaveToDB = async (results: ProcessedItemWithoutId[], screenId: number) => {
     try {
       setDbMessage('');
-      const response = await chatGPTService.saveToDatabase(results);
+      const response = await chatGPTService.saveToDatabase(results, screenId);
       
       if (response.success) {
         setDbMessage(response.message);
@@ -113,6 +114,13 @@ function App() {
           <ProjectsScreen 
             onBackToUpload={() => handleNavigate('upload')}
             onViewProject={handleViewProject}
+          />
+        );
+      
+      case 'project-management':
+        return (
+          <ProjectManagementScreen 
+            onBackToUpload={() => handleNavigate('upload')}
           />
         );
       

@@ -1,5 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './ImageUploader.css';
+import { API_CONFIG } from '../../config/api';
+
+interface Project {
+  id: number;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  screens: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    projectId: number;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+}
 
 interface ImageUploaderProps {
   onImageUpload: (file: File) => void;
@@ -11,6 +28,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isProcessi
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -52,6 +74,58 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isProcessi
     fileInputRef.current?.click();
   };
 
+  const fetchProjects = async () => {
+    if (isLoadingProjects) return;
+    
+    try {
+      setIsLoadingProjects(true);
+      const response = await fetch(`${API_CONFIG.BASE_URL}/projects`, {
+        method: 'GET',
+        headers: {
+          'accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch projects: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setProjects(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  };
+
+  const handleDropdownToggle = () => {
+    const willOpen = !isDropdownOpen;
+    setIsDropdownOpen(willOpen);
+    if (willOpen) {
+      fetchProjects();
+    }
+  };
+
+  const handleSelectProject = (project: Project) => {
+    setSelectedProject(project);
+    setIsDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="image-uploader">
       <div className="uploader-header">
@@ -68,6 +142,43 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUpload, isProcessi
           <span>ChatGPT API is not connected. Image processing will use mock data.</span>
         </div>
       )}
+
+      <div className="project-selector-container">
+        <label className="project-selector-label">Project name :</label>
+        <div className="project-dropdown-wrapper" ref={dropdownRef}>
+          <div 
+            className={`project-dropdown ${isDropdownOpen ? 'open' : ''}`}
+            onClick={handleDropdownToggle}
+          >
+            <span className={`project-dropdown-value ${!selectedProject ? 'placeholder' : ''}`}>
+              {selectedProject?.name || 'Select project'}
+            </span>
+            <span className="dropdown-arrow-icon">▼</span>
+          </div>
+          {isDropdownOpen && (
+            <div className="project-dropdown-menu">
+              {isLoadingProjects ? (
+                <div className="dropdown-loading">
+                  <div className="dropdown-spinner"></div>
+                  <span>Loading projects...</span>
+                </div>
+              ) : projects.length > 0 ? (
+                projects.map((project) => (
+                  <div
+                    key={project.id}
+                    className={`project-dropdown-item ${selectedProject?.id === project.id ? 'selected' : ''}`}
+                    onClick={() => handleSelectProject(project)}
+                  >
+                    {project.name}
+                  </div>
+                ))
+              ) : (
+                <div className="dropdown-empty">No projects found</div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
       
       <div
         className={`upload-area ${dragActive ? 'drag-active' : ''} ${isProcessing ? 'processing' : ''}`}

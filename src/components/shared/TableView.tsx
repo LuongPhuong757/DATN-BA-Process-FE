@@ -313,20 +313,6 @@ const TableView: React.FC<TableViewProps> = ({
           </div>
         </div>
         
-        <div className="filter-section">
-          <label className="filter-label">Filter by type:</label>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="filter-select"
-          >
-            <option value="all">All Types</option>
-            {uniqueTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
-        
         <div className="results-info">
           <span className="results-count">
             {filteredAndSortedItems.length} of {items.length} items
@@ -491,8 +477,8 @@ const TableView: React.FC<TableViewProps> = ({
           <div className="empty-icon">📋</div>
           <h3>No items found</h3>
           <p>
-            {searchTerm || filterType !== 'all' 
-              ? 'Try adjusting your search or filter criteria'
+            {searchTerm
+              ? 'Try adjusting your search criteria'
               : 'No processed items available for this project'
             }
           </p>

@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import './Sidebar.css';
 
 interface SidebarProps {
-  currentView: 'upload' | 'projects' | 'project-detail';
-  onNavigate: (view: 'upload' | 'projects') => void;
+  currentView: 'upload' | 'projects' | 'project-detail' | 'project-management';
+  onNavigate: (view: 'upload' | 'projects' | 'project-management') => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
   const [isToolsExpanded, setIsToolsExpanded] = useState(true);
 
   const isHistoryActive = currentView === 'projects';
+  const isProjectManagementActive = currentView === 'project-management';
 
   return (
     <div className="sidebar">
@@ -47,10 +48,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate }) => {
                 History
               </div>
               <div 
-                className={`menu-item ${currentView === 'projects' ? '' : ''}`}
-                onClick={() => onNavigate('projects')}
+                className={`menu-item ${isProjectManagementActive ? 'active' : ''}`}
+                onClick={() => onNavigate('project-management')}
               >
-                Project managemet
+                Project management
               </div>
             </div>
           )}

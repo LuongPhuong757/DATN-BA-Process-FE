@@ -1,33 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import './ProjectList.css';
+import './ProjectManagementScreen.css';
 import chatGPTService from '../../services/chatgptService';
+import NewRegistrationModal from './NewRegistrationModal';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
+import { Project } from '../shared/ProjectList';
 
-export interface Project {
-  id: number;
-  title: string;
-  body: string;
-  source: string;
-  timestamp: string;
-  createdAt: string;
-  processedItems: ProcessedItem[];
-}
-
-export interface ProcessedItem {
-  id: number;
-  itemId: number;
-  content: string;
-  type: string;
-  database: string;
-  description: string;
-  imageProcessingResultId: number;
-}
-
-interface ProjectListProps {
+interface ProjectManagementScreenProps {
   onBackToUpload: () => void;
-  onViewProject: (project: Project) => void;
 }
 
-const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject }) => {
+const ProjectManagementScreen: React.FC<ProjectManagementScreenProps> = ({ onBackToUpload }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -37,6 +19,13 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(20);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [editingScreenName, setEditingScreenName] = useState<string>('');
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ isOpen: boolean; screen: Project | null }>({
+    isOpen: false,
+    screen: null
+  });
 
   useEffect(() => {
     fetchProjects();
@@ -47,22 +36,30 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
       setLoading(true);
       setError('');
       
-      const allProjects = await chatGPTService.getAllProjects();
-      if (allProjects && allProjects.length > 0) {
-        setProjects(allProjects);
+      const data = await chatGPTService.getProjectsScreens();
+      if (data && data.length > 0) {
+        // Transform API response to Project format
+        // Use screenId from API response for delete/update operations
+        const transformedProjects: Project[] = data.map((item: any) => ({
+          id: item.screenId, // Use screenId from API - required for delete/update
+          title: item.projectName || '',
+          body: '',
+          source: item.screenName || '',
+          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          processedItems: []
+        }));
+        setProjects(transformedProjects);
       } else {
-        setError('No projects found');
+        setProjects([]);
       }
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch projects');
+      setProjects([]);
+      setError('');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleViewProject = (project: Project) => {
-    onViewProject(project);
   };
 
   const handleSelectProject = (projectId: number) => {
@@ -147,25 +144,94 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
 
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
 
-  const handleExportCSV = () => {
-    const headers = ['STT', 'Project', 'Screen', 'Registered Date'];
-    const rows = filteredProjects.map((project, index) => [
-      index + 1,
-      project.title || project.source,
-      project.source,
-      formatDate(project.createdAt)
-    ]);
+  const handleAddProject = () => {
+    setIsModalOpen(true);
+  };
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `projects_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+  const handleRegister = async (projectName: string, screens: string[]) => {
+    try {
+      await chatGPTService.registerProject(projectName, screens);
+      console.log('Successfully registered project:', projectName, screens);
+      // Refresh projects list after successful registration
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error registering project:', error);
+      throw error;
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleEditScreen = (project: Project) => {
+    setEditingRowId(project.id);
+    setEditingScreenName(project.source);
+  };
+
+  const handleSaveEdit = async (project: Project) => {
+    try {
+      if (!editingScreenName.trim()) {
+        handleCancelEdit();
+        return;
+      }
+
+      // Call API to update screen name
+      await chatGPTService.updateScreen(project.id, editingScreenName.trim());
+      
+      // Update local state
+      const updatedProjects = projects.map(p => 
+        p.id === project.id ? { ...p, source: editingScreenName.trim() } : p
+      );
+      setProjects(updatedProjects);
+      setEditingRowId(null);
+      setEditingScreenName('');
+      
+      // Refresh list to get latest data
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error updating screen:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update screen');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRowId(null);
+    setEditingScreenName('');
+  };
+
+  const handleDeleteScreen = (project: Project) => {
+    setDeleteConfirmModal({
+      isOpen: true,
+      screen: project
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmModal.screen) return;
+
+    try {
+      // Call API to delete screen using the id from API
+      await chatGPTService.deleteScreen(deleteConfirmModal.screen.id);
+      
+      // Close modal
+      setDeleteConfirmModal({ isOpen: false, screen: null });
+      
+      // Refresh list to get latest data
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error deleting screen:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete screen');
+      setDeleteConfirmModal({ isOpen: false, screen: null });
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmModal({ isOpen: false, screen: null });
   };
 
   if (loading) {
@@ -179,20 +245,6 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
     );
   }
 
-  if (error) {
-    return (
-      <div className="history-container">
-        <div className="error-container">
-          <div className="error-icon">⚠️</div>
-          <p className="error-message">{error}</p>
-          <button className="retry-button" onClick={fetchProjects}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const startIndex = (currentPage - 1) * itemsPerPage + 1;
   const endIndex = Math.min(currentPage * itemsPerPage, filteredProjects.length);
 
@@ -201,14 +253,14 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
       <div className="history-header">
         <div className="header-left-section">
           <button className="hamburger-menu">☰</button>
-          <h1 className="history-title">History</h1>
+          <h1 className="history-title">Project management</h1>
         </div>
         <div className="header-breadcrumb">
           <span className="breadcrumb-home">🏠</span>
           <span className="breadcrumb-separator"> &gt; </span>
           <span className="breadcrumb-item">Tools</span>
           <span className="breadcrumb-separator"> &gt; </span>
-          <span className="breadcrumb-item active">History</span>
+          <span className="breadcrumb-item active">Project management</span>
         </div>
       </div>
 
@@ -250,8 +302,8 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
       </div>
 
       <div className="table-actions">
-        <button className="csv-export-button" onClick={handleExportCSV}>
-          CSV export
+        <button className="add-button" onClick={handleAddProject}>
+          Add
         </button>
         <div className="entries-selector">
           <span>Show</span>
@@ -292,29 +344,91 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
             </tr>
           </thead>
           <tbody>
-            {paginatedProjects.map((project, index) => (
-              <tr key={project.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedProjectIds.has(project.id)}
-                    onChange={() => handleSelectProject(project.id)}
-                  />
-                </td>
-                <td>{startIndex + index}</td>
-                <td>{project.title || project.source}</td>
-                <td>{project.source}</td>
-                <td>{formatDate(project.createdAt)}</td>
-                <td>
-                  <button
-                    className="details-button"
-                    onClick={() => handleViewProject(project)}
-                  >
-                    Details
-                  </button>
+            {paginatedProjects.length > 0 ? (
+              paginatedProjects.map((project, index) => (
+                <tr key={project.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedProjectIds.has(project.id)}
+                      onChange={() => handleSelectProject(project.id)}
+                    />
+                  </td>
+                  <td>{startIndex + index}</td>
+                  <td>{project.title || project.source}</td>
+                  <td>
+                    {editingRowId === project.id ? (
+                      <input
+                        type="text"
+                        className="inline-edit-input"
+                        value={editingScreenName}
+                        onChange={(e) => setEditingScreenName(e.target.value)}
+                        onBlur={() => handleSaveEdit(project)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveEdit(project);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          }
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      project.source
+                    )}
+                  </td>
+                  <td>{formatDate(project.createdAt)}</td>
+                  <td>
+                    <div className="table-actions-cell">
+                      {editingRowId === project.id ? (
+                        <>
+                          <button
+                            className="icon-button save-button"
+                            onClick={() => handleSaveEdit(project)}
+                            title="Save"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            className="icon-button cancel-button"
+                            onClick={handleCancelEdit}
+                            title="Cancel"
+                          >
+                            ×
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="icon-button edit-button"
+                            onClick={() => handleEditScreen(project)}
+                            title="Edit"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="icon-button delete-button"
+                            onClick={() => handleDeleteScreen(project)}
+                            title="Delete"
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} className="no-data-cell">
+                  <div className="no-data-message">
+                    <div className="no-data-icon">📋</div>
+                    <p>No data available</p>
+                  </div>
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -391,8 +505,24 @@ const ProjectList: React.FC<ProjectListProps> = ({ onBackToUpload, onViewProject
           </button>
         </div>
       </div>
+
+      {isModalOpen && (
+        <NewRegistrationModal
+          onClose={handleModalClose}
+          onRegister={handleRegister}
+        />
+      )}
+
+      {deleteConfirmModal.isOpen && deleteConfirmModal.screen && (
+        <ConfirmDeleteModal
+          screenName={deleteConfirmModal.screen.source}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      )}
     </div>
   );
 };
 
-export default ProjectList;
+export default ProjectManagementScreen;
+

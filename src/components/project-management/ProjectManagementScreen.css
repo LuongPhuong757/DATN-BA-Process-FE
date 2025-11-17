@@ -1,0 +1,136 @@
+/* Import styles from ProjectList */
+@import '../shared/ProjectList.css';
+
+.history-table th:last-child,
+.history-table td:last-child {
+  text-align: center;
+}
+
+.add-button {
+  padding: var(--space-2) var(--space-4);
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: none;
+  margin-right: var(--space-2);
+}
+
+.add-button:hover {
+  background-color: #1976d2;
+}
+
+.no-data-cell {
+  text-align: center;
+  padding: var(--space-8) !important;
+}
+
+.no-data-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.no-data-icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-3);
+  opacity: 0.5;
+}
+
+.no-data-message p {
+  color: var(--secondary-500);
+  font-size: var(--font-size-base);
+  margin: 0;
+}
+
+.table-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: center;
+  width: 100%;
+}
+
+.inline-edit-input {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid #2196f3;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  width: 100%;
+  max-width: 200px;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+}
+
+.inline-edit-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.icon-button:hover {
+  background-color: var(--secondary-100);
+}
+
+.edit-button {
+  font-size: 18px;
+}
+
+.edit-button:hover {
+  background-color: #e3f2fd;
+}
+
+.delete-button {
+  font-size: 18px;
+}
+
+.delete-button:hover {
+  background-color: #ffebee;
+}
+
+.save-button {
+  color: #2e7d32;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.save-button:hover {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+}
+
+.cancel-button {
+  color: #c62828;
+  font-weight: bold;
+  font-size: 22px;
+  padding: 2px;
+}
+
+.cancel-button:hover {
+  background-color: #ffebee;
+  color: #b71c1c;
+}
+
