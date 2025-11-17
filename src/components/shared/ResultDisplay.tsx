@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import './ResultDisplay.css';
 
 export interface ProcessedItem {
@@ -36,6 +36,12 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
   const [editedResults, setEditedResults] = useState<ProcessedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingToDB, setIsSavingToDB] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entriesPerPage, setEntriesPerPage] = useState(20);
+  const [selectedDate, setSelectedDate] = useState('Last 30 days');
+  const [selectedProject, setSelectedProject] = useState('All');
+  const [selectedScreen, setSelectedScreen] = useState('All');
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
   const handleEdit = () => {
     setEditedResults([...results]);
@@ -94,6 +100,72 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
       return index < array.length - 1 ? part + '.' : part;
     }).filter(part => part.trim() !== '').join('.\n');
   };
+
+  const handleClearFilters = () => {
+    setSelectedDate('Last 30 days');
+    setSelectedProject('All');
+    setSelectedScreen('All');
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+  };
+
+  const handleExportCSV = () => {
+    const dataToExport = isEditing ? editedResults : results;
+    const headers = ['STT', 'Content', 'Type', 'Database', 'Description'];
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map((item, index) => [
+        index + 1,
+        `"${item.content.replace(/"/g, '""')}"`,
+        `"${item.type.replace(/"/g, '""')}"`,
+        `"${item.database.replace(/"/g, '""')}"`,
+        `"${item.description.replace(/"/g, '""')}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `results_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const currentData = isEditing ? editedResults : results;
+      setSelectedRows(new Set(currentData.map(item => item.id)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const paginatedResults = useMemo(() => {
+    const dataToShow = isEditing ? editedResults : results;
+    const startIndex = (currentPage - 1) * entriesPerPage;
+    const endIndex = startIndex + entriesPerPage;
+    return dataToShow.slice(startIndex, endIndex);
+  }, [isEditing, editedResults, results, currentPage, entriesPerPage]);
+
+  const totalPages = Math.ceil((isEditing ? editedResults.length : results.length) / entriesPerPage);
+  const startEntry = (currentPage - 1) * entriesPerPage + 1;
+  const endEntry = Math.min(currentPage * entriesPerPage, isEditing ? editedResults.length : results.length);
+  const totalEntries = isEditing ? editedResults.length : results.length;
   if (isLoading) {
     return (
       <div className="result-display">
@@ -153,65 +225,146 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
 
   return (
     <div className="result-display">
-      <div className="result-header">
-        <div className="header-icon">🔍</div>
-        <div className="header-content">
-          <h2>AI Analysis Results</h2>
-          <p>Found {results.length} text element{results.length !== 1 ? 's' : ''} in your image</p>
+      <div className="result-page-header">
+        <h1 className="page-title">AI Analysis Results</h1>
+        <div className="breadcrumbs">
+          <span className="breadcrumb-icon">🏠</span>
+          <span className="breadcrumb-separator">›</span>
+          <span>Tools</span>
+          <span className="breadcrumb-separator">›</span>
+          <span className="breadcrumb-active">Results</span>
         </div>
       </div>
-      <div className="results-container">
-        <div className="results-header">
-          <span className="results-count">
-            Found {results.length} item{results.length !== 1 ? 's' : ''}
-          </span>
-          <div className="action-buttons">
-            {!isEditing && !isReadOnly && (
-              <>
-                <button className="edit-button" onClick={handleEdit}>
-                  Edit
-                </button>
-                <button 
-                  className="save-to-db-button" 
-                  onClick={handleSaveToDB}
-                  disabled={isSavingToDB}
-                >
-                  {isSavingToDB ? 'Saving to DB...' : 'Save To DB'}
-                </button>
-              </>
-            )}
-            {isEditing && (
-              <div className="edit-controls">
-                <button 
-                  className="save-button" 
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-                <button className="cancel-button" onClick={handleCancel}>
-                  Cancel
-                </button>
-              </div>
-            )}
+
+      <div className="filter-section">
+        <div className="filter-input-group">
+          <div className="filter-input-wrapper">
+            <input
+              type="text"
+              className="filter-input"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              placeholder="Last 30 days"
+            />
+            <span className="filter-icon">📅</span>
+          </div>
+          <div className="filter-select-group">
+            <label className="filter-label">Project</label>
+            <select
+              className="filter-select"
+              value={selectedProject}
+              onChange={(e) => setSelectedProject(e.target.value)}
+            >
+              <option value="All">All</option>
+            </select>
+          </div>
+          <div className="filter-select-group">
+            <label className="filter-label">Screen</label>
+            <select
+              className="filter-select"
+              value={selectedScreen}
+              onChange={(e) => setSelectedScreen(e.target.value)}
+            >
+              <option value="All">All</option>
+            </select>
           </div>
         </div>
-        
-        <div className="table-container">
-          <table className="results-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Content</th>
-                <th>Type</th>
-                <th>Database</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(isEditing ? editedResults : results).map((item) => (
+        <div className="filter-buttons">
+          <button className="filter-clear-button" onClick={handleClearFilters}>
+            Clear
+          </button>
+          <button className="filter-search-button" onClick={handleSearch}>
+            Search
+          </button>
+        </div>
+      </div>
+
+      <div className="results-actions">
+        <div className="results-actions-left">
+          <button className="csv-export-button" onClick={handleExportCSV}>
+            CSV export
+          </button>
+          {!isEditing && !isReadOnly && (
+            <>
+              <button className="edit-button" onClick={handleEdit}>
+                Edit
+              </button>
+              <button 
+                className="save-to-db-button" 
+                onClick={handleSaveToDB}
+                disabled={isSavingToDB}
+              >
+                {isSavingToDB ? 'Saving to DB...' : 'Save To DB'}
+              </button>
+            </>
+          )}
+          {isEditing && (
+            <div className="edit-controls">
+              <button 
+                className="save-button" 
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button className="cancel-button" onClick={handleCancel}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="entries-selector">
+          <span>Show</span>
+          <select
+            className="entries-select"
+            value={entriesPerPage}
+            onChange={(e) => {
+              setEntriesPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+      </div>
+
+      <div className="table-container">
+        <table className="results-table">
+          <thead>
+            <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  checked={selectedRows.size === (isEditing ? editedResults.length : results.length) && (isEditing ? editedResults.length : results.length) > 0}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="row-checkbox"
+                />
+              </th>
+              <th>STT</th>
+              <th>Content</th>
+              <th>Type</th>
+              <th>Database</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedResults.map((item, index) => {
+              const globalIndex = (currentPage - 1) * entriesPerPage + index + 1;
+              return (
                 <tr key={item.id} className={`result-row ${isEditing ? 'editing' : ''}`}>
-                  <td className="row-number">{item.id}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(item.id)}
+                      onChange={(e) => handleSelectRow(item.id, e.target.checked)}
+                      className="row-checkbox"
+                    />
+                  </td>
+                  <td className="row-number">{globalIndex}</td>
                   <td className="content-cell">
                     {isEditing ? (
                       <input
@@ -265,9 +418,80 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
                     )}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pagination-container">
+        <div className="entries-info">
+          <span>Show</span>
+          <select
+            className="entries-select-bottom"
+            value={entriesPerPage}
+            onChange={(e) => {
+              setEntriesPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <div className="pagination-info">
+          Showing {startEntry} to {endEntry} of {totalEntries} entries
+        </div>
+        <div className="pagination-controls">
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum: number;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+            return (
+              <button
+                key={pageNum}
+                className={`pagination-button ${currentPage === pageNum ? 'active' : ''}`}
+                onClick={() => setCurrentPage(pageNum)}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+          {totalPages > 5 && currentPage < totalPages - 2 && (
+            <>
+              <span className="pagination-ellipsis">...</span>
+              <button
+                className="pagination-button"
+                onClick={() => setCurrentPage(totalPages)}
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+          <button
+            className="pagination-button"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

@@ -75,6 +75,7 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     
     // Define CSV headers (excluding ID fields)
     const headers = [
+      'STT',
       'Content',
       'Type',
       'Database',
@@ -86,7 +87,8 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     // Convert data to CSV format (excluding ID fields)
     const csvContent = [
       headers.join(','),
-      ...items.map(item => [
+      ...items.map((item, index) => [
+        index + 1,
         `"${item.content.replace(/"/g, '""')}"`, // Escape quotes in content
         `"${item.type}"`,
         `"${item.database}"`,
@@ -108,57 +110,67 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     document.body.removeChild(link);
   };
 
+
+  if (!selectedProject) {
+    return (
+      <div className="project-detail-container">
+        <div className="empty-project">
+          <p>No project selected</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="project-detail-container">
-      {selectedProject && (
-        <>
-          <div className="project-detail-header">
-            <div className="project-info">
-              <h2 className="project-title">{selectedProject.title}</h2>
-              <p className="project-description">{selectedProject.body}</p>
-              <div className="project-stats">
-                <span className="stat-item">
-                  📊 {selectedProject.processedItems.length} items
-                </span>
-                <span className="stat-item">
-                  📅 {new Date(selectedProject.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-            <div className="project-actions">
-              <button 
-                className="export-csv-button"
-                onClick={exportToCSV}
-                disabled={!selectedProject.processedItems || selectedProject.processedItems.length === 0}
-              >
-                📥 Export CSV
-              </button>
-            </div>
-          </div>
-          
-          {/* Save Message Display */}
-          {saveMessage && (
-            <div className={`save-message ${saveMessage.includes('Lỗi') ? 'error' : 'success'}`}>
-              {saveMessage}
-            </div>
-          )}
-          
-          {/* Loading Overlay */}
-          {isSaving && (
-            <div className="saving-overlay">
-              <div className="saving-spinner"></div>
-              <span>Đang lưu...</span>
-            </div>
-          )}
-          
-          <TableView 
-            items={selectedProject.processedItems}
-            isLoading={false}
-            isEditable={true}
-            onSave={handleSave}
-          />
-        </>
+      <div className="result-page-header">
+        <h1 className="page-title">{selectedProject.title}</h1>
+        <div className="breadcrumbs">
+          <span className="breadcrumb-icon">🏠</span>
+          <span className="breadcrumb-separator">›</span>
+          <span>Tools</span>
+          <span className="breadcrumb-separator">›</span>
+          <span>History</span>
+          <span className="breadcrumb-separator">›</span>
+          <span className="breadcrumb-active">Project Detail</span>
+        </div>
+      </div>
+
+      <div className="results-actions">
+        <div className="results-actions-left">
+          <button 
+            className="csv-export-button"
+            onClick={exportToCSV}
+            disabled={!selectedProject.processedItems || selectedProject.processedItems.length === 0}
+          >
+            CSV export
+          </button>
+        </div>
+      </div>
+
+      {/* Save Message Display */}
+      {saveMessage && (
+        <div className={`save-message ${saveMessage.includes('Lỗi') ? 'error' : 'success'}`}>
+          {saveMessage}
+        </div>
       )}
+      
+      {/* Loading Overlay */}
+      {isSaving && (
+        <div className="saving-overlay">
+          <div className="saving-spinner"></div>
+          <span>Đang lưu...</span>
+        </div>
+      )}
+
+      <div className="table-container-wrapper">
+        <TableView 
+          items={selectedProject.processedItems || []}
+          isLoading={false}
+          isEditable={true}
+          onSave={handleSave}
+        />
+      </div>
     </div>
   );
 };

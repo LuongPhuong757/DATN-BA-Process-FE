@@ -1,9 +1,7 @@
-import React from 'react';
-import ImageUploader from './ImageUploader';
-import ConnectionStatus from '../shared/ConnectionStatus';
+import React, { useState, useRef } from 'react';
 import TableView from '../shared/TableView';
-import MessageDisplay from '../shared/MessageDisplay';
 import { ProcessedItem, ProcessedItemWithoutId } from '../shared/ResultDisplay';
+import './UploadScreen.css';
 
 interface UploadScreenProps {
   isProcessing: boolean;
@@ -32,22 +30,88 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
   onSaveToDB,
   onClearMessages
 }) => {
+  const [projectName, setProjectName] = useState('');
+  const [screenName, setScreenName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleReadFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleClear = () => {
+    setProjectName('');
+    setScreenName('');
+    onClearMessages();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      onImageUpload(e.target.files[0]);
+    }
+  };
+
   return (
-    <div className="app-container">
-      <div className="left-panel">
-        <ConnectionStatus onConnectionChange={onConnectionChange} />
-        <ImageUploader 
-          onImageUpload={onImageUpload}
-          isProcessing={isProcessing}
-          isConnected={isConnected}
-        />
-        <MessageDisplay 
-          errorMessage={errorMessage}
-          saveMessage={saveMessage}
-          dbMessage={dbMessage}
-        />
-      </div>
+    <div className="upload-screen-container">
+      <div className="menu-gen-spec-tab">Menu Gen spec</div>
       
+      <div className="upload-content-wrapper">
+        <div className="upload-main-content">
+          <div className="upload-area-new" onClick={handleReadFile}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+            <div className="upload-text-new">
+              Drag and drop or click to select the image
+            </div>
+          </div>
+
+          <div className="input-fields-container">
+            <div className="input-field-wrapper">
+              <label className="input-label">Project name :</label>
+              <div className="select-input-wrapper">
+                <input
+                  type="text"
+                  className="select-input"
+                  placeholder="Select sheet"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                />
+                <span className="dropdown-arrow">▼</span>
+              </div>
+            </div>
+
+            <div className="input-field-wrapper">
+              <label className="input-label">Screen name :</label>
+              <div className="select-input-wrapper">
+                <input
+                  type="text"
+                  className="select-input"
+                  placeholder="Select sheet"
+                  value={screenName}
+                  onChange={(e) => setScreenName(e.target.value)}
+                />
+                <span className="dropdown-arrow">▼</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="action-buttons">
+            <button className="read-file-button" onClick={handleReadFile}>
+              Read file
+            </button>
+            <button className="clear-button" onClick={handleClear}>
+              Clear
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="right-panel">
         {isProcessing ? (
           <div className="processing-container">

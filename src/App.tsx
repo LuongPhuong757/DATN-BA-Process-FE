@@ -3,7 +3,7 @@ import './App.css';
 import UploadScreen from './components/upload/UploadScreen';
 import ProjectsScreen from './components/projects/ProjectsScreen';
 import ProjectDetailScreen from './components/project-detail/ProjectDetailScreen';
-import Navigation from './components/shared/Navigation';
+import Sidebar from './components/shared/Sidebar';
 import { ProcessedItem, ProcessedItemWithoutId } from './components/shared/ResultDisplay';
 import { Project } from './components/shared/ProjectList';
 import chatGPTService from './services/chatgptService';
@@ -145,19 +145,14 @@ function App() {
 
   return (
     <div className="App">
-      <Navigation 
+      <Sidebar 
         currentView={currentView}
         onNavigate={handleNavigate}
-        projectTitle={selectedProject?.title}
       />
       
       <main className="App-main">
         {renderCurrentView()}
       </main>
-      
-      <footer className="App-footer">
-        <p>Powered by OpenAI ChatGPT Vision API</p>
-      </footer>
     </div>
   );
 }

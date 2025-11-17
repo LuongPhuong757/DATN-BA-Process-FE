@@ -108,6 +108,7 @@ const TableView: React.FC<TableViewProps> = ({
   const [editedItems, setEditedItems] = useState<ProcessedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingToDB, setIsSavingToDB] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
   // Get unique types for filter
   const uniqueTypes = Array.from(new Set(items.map(item => item.type)));
@@ -124,17 +125,17 @@ const TableView: React.FC<TableViewProps> = ({
     { value: 'form', label: 'Form' }
   ];
 
-  // Data type options for dropdown
-  const dataTypeOptions = [
-    { value: 'string', label: 'String' },
-    { value: 'number', label: 'Number' },
-    { value: 'boolean', label: 'Boolean' },
-    { value: 'date', label: 'Date' },
-    { value: 'email', label: 'Email' },
-    { value: 'phone', label: 'Phone' },
-    { value: 'url', label: 'URL' },
-    { value: 'json', label: 'JSON' }
-  ];
+  // Data type options for dropdown (kept for future use)
+  // const dataTypeOptions = [
+  //   { value: 'string', label: 'String' },
+  //   { value: 'number', label: 'Number' },
+  //   { value: 'boolean', label: 'Boolean' },
+  //   { value: 'date', label: 'Date' },
+  //   { value: 'email', label: 'Email' },
+  //   { value: 'phone', label: 'Phone' },
+  //   { value: 'url', label: 'URL' },
+  //   { value: 'json', label: 'JSON' }
+  // ];
 
   // Handle edit functions
   const handleEdit = () => {
@@ -238,23 +239,24 @@ const TableView: React.FC<TableViewProps> = ({
     }
   };
 
-  const getDataTypeColor = (dataType: string) => {
-    switch (dataType.toLowerCase()) {
-      case 'string': return '#2196F3';
-      case 'number': return '#4CAF50';
-      case 'boolean': return '#FF9800';
-      case 'date': return '#9C27B0';
-      case 'email': return '#F44336';
-      case 'phone': return '#607D8B';
-      case 'url': return '#795548';
-      case 'json': return '#E91E63';
-      default: return '#9E9E9E';
-    }
-  };
+  // const getDataTypeColor = (dataType: string) => {
+  //   switch (dataType.toLowerCase()) {
+  //     case 'string': return '#2196F3';
+  //     case 'number': return '#4CAF50';
+  //     case 'boolean': return '#FF9800';
+  //     case 'date': return '#9C27B0';
+  //     case 'email': return '#F44336';
+  //     case 'phone': return '#607D8B';
+  //     case 'url': return '#795548';
+  //     case 'json': return '#E91E63';
+  //     default: return '#9E9E9E';
+  //   }
+  // };
 
   const getSortIcon = (field: keyof ProcessedItem) => {
-    if (sortField !== field) return '↕️';
-    return sortDirection === 'asc' ? '↑' : '↓';
+    const isActive = sortField === field;
+    const isDesc = isActive && sortDirection === 'desc';
+    return <span className={`sort-icon ${isDesc ? 'rotated' : ''}`}>▼</span>;
   };
 
   const formatDescription = (text: string) => {
@@ -265,6 +267,24 @@ const TableView: React.FC<TableViewProps> = ({
       }
       return index < array.length - 1 ? part + '.' : part;
     }).filter(part => part.trim() !== '').join('.\n');
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRows(new Set(filteredAndSortedItems.map(item => item.id)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: number, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
   };
 
   if (isLoading) {
@@ -359,41 +379,58 @@ const TableView: React.FC<TableViewProps> = ({
         <table className={`data-table ${isEditing ? 'editing' : ''}`}>
           <thead>
             <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  checked={selectedRows.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="row-checkbox"
+                />
+              </th>
+              <th 
+                className="sortable"
+                onClick={() => handleSort('id')}
+              >
+                STT {getSortIcon('id')}
+              </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('type')}
               >
-                Loại {getSortIcon('type')}
+                Type {getSortIcon('type')}
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('content')}
               >
-                Nội dung {getSortIcon('content')}
+                Content {getSortIcon('content')}
+              </th>
+              <th 
+                className="sortable"
+                onClick={() => handleSort('database')}
+              >
+                Database {getSortIcon('database')}
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('description')}
               >
-                Mô tả {getSortIcon('description')}
-              </th>
-              <th 
-                className="sortable"
-                onClick={() => handleSort('dataType')}
-              >
-                Kiểu dữ liệu {getSortIcon('dataType')}
-              </th>
-              <th 
-                className="sortable"
-                onClick={() => handleSort('dbField')}
-              >
-                Trường DB {getSortIcon('dbField')}
+                Description {getSortIcon('description')}
               </th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedItems.map((item, index) => (
               <tr key={item.id} className={index % 2 === 0 ? 'even' : 'odd'}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selectedRows.has(item.id)}
+                    onChange={(e) => handleSelectRow(item.id, e.target.checked)}
+                    className="row-checkbox"
+                  />
+                </td>
+                <td className="stt-cell">{item.id}</td>
                 <td className="type-cell">
                   {isEditing ? (
                     <SimpleDropdown
@@ -403,12 +440,7 @@ const TableView: React.FC<TableViewProps> = ({
                       getTypeColor={getTypeColor}
                     />
                   ) : (
-                    <span 
-                      className="type-badge"
-                      style={{ backgroundColor: getTypeColor(item.type) }}
-                    >
-                      {item.type}
-                    </span>
+                    <span className="type-text">{item.type}</span>
                   )}
                 </td>
                 <td className="content-cell">
@@ -420,12 +452,19 @@ const TableView: React.FC<TableViewProps> = ({
                       className="edit-input"
                     />
                   ) : (
-                    <div className="content-text">
-                      {item.content}
-                      <div className="custom-tooltip">
-                        {item.content}
-                      </div>
-                    </div>
+                    <span className="content-text">{item.content}</span>
+                  )}
+                </td>
+                <td className="database-cell">
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={item.database}
+                      onChange={(e) => handleFieldChange(item.id, 'database', e.target.value)}
+                      className="edit-input"
+                    />
+                  ) : (
+                    <span className="database-text">{item.database}</span>
                   )}
                 </td>
                 <td className="description-cell">
@@ -437,29 +476,8 @@ const TableView: React.FC<TableViewProps> = ({
                       rows={3}
                     />
                   ) : (
-                    <div className="description-text">
-                      {formatDescription(item.description)}
-                    </div>
+                    <span className="description-text">{formatDescription(item.description)}</span>
                   )}
-                </td>
-                <td className="datatype-cell">
-                  {isEditing ? (
-                    <SimpleDropdown
-                      value={item.dataType || 'string'}
-                      onChange={(value) => handleFieldChange(item.id, 'dataType', value)}
-                      options={dataTypeOptions}
-                      getTypeColor={getDataTypeColor}
-                    />
-                  ) : (
-                    <span className="datatype-badge" style={{ backgroundColor: getDataTypeColor(item.dataType || 'string') }}>
-                      {item.dataType || 'string'}
-                    </span>
-                  )}
-                </td>
-                <td className="dbfield-cell">
-                  <span className="dbfield-text" title={item.dbField}>
-                    {item.dbField || 'content_field'}
-                  </span>
                 </td>
               </tr>
             ))}
