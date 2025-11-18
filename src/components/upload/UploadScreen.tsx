@@ -217,19 +217,24 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
+      if (isProjectDropdownOpen && projectDropdownRef.current && !projectDropdownRef.current.contains(event.target as Node)) {
         setIsProjectDropdownOpen(false);
       }
-      if (screenDropdownRef.current && !screenDropdownRef.current.contains(event.target as Node)) {
+      if (isScreenDropdownOpen && screenDropdownRef.current && !screenDropdownRef.current.contains(event.target as Node)) {
         setIsScreenDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    // Use setTimeout to avoid immediate closure on the same click that opened it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isProjectDropdownOpen, isScreenDropdownOpen]);
 
   // Clear all fields when save to DB is successful
   useEffect(() => {
@@ -336,7 +341,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
                   <span className="dropdown-arrow">▼</span>
                 </div>
                 {isScreenDropdownOpen && selectedProject && (
-                  <div className="dropdown-menu">
+                  <div className="dropdown-menu" style={{ display: 'block' }}>
                     {selectedProject.screens && selectedProject.screens.length > 0 ? (
                       selectedProject.screens.map((screen) => (
                         <div

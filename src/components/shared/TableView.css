@@ -186,7 +186,7 @@
 .simple-dropdown {
   position: relative;
   width: 100%;
-  z-index: 10000;
+  z-index: 0;
 }
 
 .simple-dropdown.dropdown-open {
@@ -238,7 +238,8 @@
   overflow: hidden;
   margin-top: 4px;
   
-  /* Slide down animation */
+  /* Hidden by default */
+  display: none;
   max-height: 0;
   opacity: 0;
   transform: translateY(-10px);
@@ -246,6 +247,7 @@
 }
 
 .dropdown-menu.open {
+  display: block;
   max-height: 200px;
   opacity: 1;
   transform: translateY(0);
@@ -450,7 +452,7 @@
   background-color: #1e3a5f;
   color: white;
   position: sticky;
-  top: 0;
+  top: -17px;
   z-index: 10;
   display: table-header-group;
   width: 100%;
@@ -549,6 +551,13 @@
   color: var(--secondary-700);
 }
 
+/* When editing, make STT column smaller */
+.data-table.editing .stt-cell {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+}
+
 .type-text {
   color: var(--secondary-700);
   font-weight: 500;
@@ -621,7 +630,8 @@
 }
 
 .type-cell {
-  width: 100px;
+  width: 180px;
+  min-width: 180px;
   overflow: visible;
   position: relative;
   z-index: 1;
@@ -649,6 +659,13 @@
   max-width: 300px;
 }
 
+/* When editing, make Content column smaller */
+.data-table.editing .content-cell {
+  min-width: 150px;
+  max-width: 200px;
+  width: 200px;
+}
+
 .content-text {
   color: var(--secondary-800);
   font-weight: 500;
@@ -669,7 +686,7 @@
 }
 
 .description-cell {
-  min-width: 250px;
+  min-width: 200px;
   max-width: none;
   word-wrap: break-word;
   word-break: break-word;
@@ -734,7 +751,8 @@
 }
 
 .database-cell {
-  width: 150px;
+  width: 180px;
+  min-width: 180px;
 }
 
 .database-badge {

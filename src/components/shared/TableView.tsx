@@ -18,18 +18,31 @@ const SimpleDropdown: React.FC<SimpleDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Handle click outside to close dropdown - only when open
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    // Use setTimeout to avoid immediate closure on the same click that opened it
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 0);
+    
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isOpen]);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(prev => !prev);
+  };
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
@@ -40,7 +53,7 @@ const SimpleDropdown: React.FC<SimpleDropdownProps> = ({
     <div className={`simple-dropdown ${isOpen ? 'dropdown-open' : ''}`} ref={dropdownRef}>
       <div 
         className="dropdown-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         style={{ backgroundColor: getTypeColor(value) }}
       >
         <span>{value}</span>
@@ -100,7 +113,7 @@ const TableView: React.FC<TableViewProps> = ({
   onSave, 
   onSaveToDB
 }) => {
-  const [sortField, setSortField] = useState<keyof ProcessedItem>('type');
+  const [sortField, setSortField] = useState<keyof ProcessedItem>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -379,11 +392,8 @@ const TableView: React.FC<TableViewProps> = ({
               >
                 STT {getSortIcon('id')}
               </th>
-              <th 
-                className="sortable"
-                onClick={() => handleSort('type')}
-              >
-                Type {getSortIcon('type')}
+              <th>
+                Type
               </th>
               <th 
                 className="sortable"
