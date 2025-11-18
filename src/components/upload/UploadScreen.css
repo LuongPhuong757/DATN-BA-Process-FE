@@ -230,7 +230,7 @@
   overflow-y: auto;
   z-index: 10000;
   margin-top: 2px;
-  display: block !important;
+  /* display: block !important; */
   visibility: visible !important;
   opacity: 1 !important;
 }
