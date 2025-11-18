@@ -139,7 +139,8 @@ const TableView: React.FC<TableViewProps> = ({
     { value: 'chart', label: 'Chart' },
     { value: 'image', label: 'Image' },
     { value: 'link', label: 'Link' },
-    { value: 'form', label: 'Form' }
+    { value: 'form', label: 'Form' },
+    { value: 'label', label: 'Label' },
   ];
 
   // Data type options for dropdown (kept for future use)
