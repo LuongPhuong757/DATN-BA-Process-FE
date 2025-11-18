@@ -49,6 +49,10 @@ const SimpleDropdown: React.FC<SimpleDropdownProps> = ({
     setIsOpen(false);
   };
 
+  // Find the label for the current value
+  const currentOption = options.find(opt => opt.value === value);
+  const displayLabel = currentOption ? currentOption.label : value;
+
   return (
     <div className={`simple-dropdown ${isOpen ? 'dropdown-open' : ''}`} ref={dropdownRef}>
       <div 
@@ -56,7 +60,7 @@ const SimpleDropdown: React.FC<SimpleDropdownProps> = ({
         onClick={handleToggle}
         style={{ backgroundColor: getTypeColor(value) }}
       >
-        <span>{value}</span>
+        <span>{displayLabel}</span>
         <span className={`dropdown-arrow ${isOpen ? 'open' : ''}`}>▼</span>
       </div>
       
@@ -282,6 +286,19 @@ const TableView: React.FC<TableViewProps> = ({
     }).filter(part => part.trim() !== '').join('.\n');
   };
 
+  const formatType = (type: string) => {
+    if (!type) return '';
+    // Fix common typos
+    const fixedType = type.toLowerCase().replace('botton', 'button');
+    // Find matching option
+    const option = typeOptions.find(opt => opt.value.toLowerCase() === fixedType);
+    if (option) {
+      return option.label;
+    }
+    // If no match, capitalize first letter
+    return fixedType.charAt(0).toUpperCase() + fixedType.slice(1);
+  };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedRows(new Set(filteredAndSortedItems.map(item => item.id)));
@@ -436,7 +453,7 @@ const TableView: React.FC<TableViewProps> = ({
                       getTypeColor={getTypeColor}
                     />
                   ) : (
-                    <span className="type-text">{item.type}</span>
+                    <span className="type-text">{formatType(item.type)}</span>
                   )}
                 </td>
                 <td className="content-cell">
