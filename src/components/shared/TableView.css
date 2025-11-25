@@ -777,6 +777,47 @@
   z-index: auto;
 }
 
+.required-cell {
+  width: 100px;
+  text-align: center;
+}
+
+.required-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: default;
+  transition: all var(--transition-normal);
+}
+
+.required-icon.required-true {
+  background-color: #F44336;
+  color: white;
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+
+.required-icon.required-false {
+  background-color: #9E9E9E;
+  color: white;
+  box-shadow: 0 2px 4px rgba(158, 158, 158, 0.3);
+}
+
+.required-icon.required-conditional {
+  background-color: #FF9800;
+  color: white;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+}
+
+.data-table.editing .required-cell {
+  overflow: visible;
+  z-index: auto;
+}
+
 .datatype-badge {
   display: inline-flex;
   align-items: center;

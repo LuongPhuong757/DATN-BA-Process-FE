@@ -104,10 +104,39 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
+.sidebar-google-login-button {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.sidebar-google-login-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.google-icon {
+  font-size: var(--font-size-base);
+}
+
 @media (max-width: 768px) {
   .sidebar {
     width: 200px;
   }
 }
+
+
 
 

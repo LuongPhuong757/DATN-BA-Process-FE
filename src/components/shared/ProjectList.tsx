@@ -10,6 +10,8 @@ export interface Project {
   timestamp: string;
   createdAt: string;
   processedItems: ProcessedItem[];
+  imageUrl?: string;
+  urlSheet?: string;
 }
 
 export interface ProcessedItem {
@@ -20,6 +22,11 @@ export interface ProcessedItem {
   database: string;
   description: string;
   imageProcessingResultId: number;
+  dataType?: string;
+  dbField?: string;
+  io?: string;
+  required?: boolean | null;
+  stt?: number;
 }
 
 interface ProjectListProps {

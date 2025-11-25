@@ -6,21 +6,26 @@ export interface ProcessedItem {
   itemId: number;
   content: string;
   type: string;
-  database: string;
+  database: string | null;
   description: string;
   imageProcessingResultId: number;
   dataType?: string;
   dbField?: string;
+  io?: string;
+  required?: boolean | null;
+  stt?: number;
 }
 
 export interface ProcessedItemWithoutId {
   content: string;
   type: string;
-  database: string;
+  database: string | null;
   description: string;
   imageProcessingResultId: number;
   dataType?: string;
   dbField?: string;
+  io?: string;
+  required?: boolean | null;
 }
 
 interface ResultDisplayProps {
@@ -53,7 +58,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
     setEditedResults([]);
   };
 
-  const handleFieldChange = (id: number, field: keyof ProcessedItem, value: string) => {
+  const handleFieldChange = (id: number, field: keyof ProcessedItem, value: string | null) => {
     setEditedResults(prev => 
       prev.map(item => 
         item.id === id ? { ...item, [field]: value } : item
@@ -120,7 +125,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
         index + 1,
         `"${item.content.replace(/"/g, '""')}"`,
         `"${item.type.replace(/"/g, '""')}"`,
-        `"${item.database.replace(/"/g, '""')}"`,
+        `"${(item.database || '-').replace(/"/g, '""')}"`,
         `"${item.description.replace(/"/g, '""')}"`
       ].join(','))
     ].join('\n');
@@ -395,12 +400,12 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ results, isLoading, onSav
                     {isEditing ? (
                       <input
                         type="text"
-                        value={item.database}
-                        onChange={(e) => handleFieldChange(item.id, 'database', e.target.value)}
+                        value={item.database || '-'}
+                        onChange={(e) => handleFieldChange(item.id, 'database', e.target.value === '-' ? null : e.target.value)}
                         className="edit-input"
                       />
                     ) : (
-                      item.database
+                      item.database || '-'
                     )}
                   </td>
                   <td className="description-cell">

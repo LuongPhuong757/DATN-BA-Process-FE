@@ -30,7 +30,7 @@ interface UploadScreenProps {
   onImageUpload: (file: File) => Promise<void>;
   onConnectionChange: (connected: boolean) => void;
   onSaveResults: (updatedResults: ProcessedItem[]) => Promise<void>;
-  onSaveToDB: (results: ProcessedItemWithoutId[], screenId: number) => Promise<void>;
+  onSaveToDB: (results: ProcessedItemWithoutId[], screenId: number, imageUrl: string) => Promise<void>;
   onClearMessages: () => void;
 }
 
@@ -55,7 +55,10 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [autoDataSourcePrediction, setAutoDataSourcePrediction] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const screenDropdownRef = useRef<HTMLDivElement>(null);
@@ -149,6 +152,8 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
     setSelectedProject(null);
     setSelectedScreen(null);
     setSelectedFile(null);
+    setUploadedUrl(null);
+    setAutoDataSourcePrediction(false);
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
@@ -159,30 +164,67 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
     onClearMessages();
   }, [previewUrl, onClearMessages]);
 
-  const processFile = (file: File) => {
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`${API_CONFIG.BASE_URL}/upload`, {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status} - ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Upload response:', data);
+      return data.url || null;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload image. Please try again.');
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const processFile = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
     }
     
-    // Clear previous preview
+    // Clear previous preview and uploaded URL
     setPreviewUrl(prevUrl => {
       if (prevUrl) {
         URL.revokeObjectURL(prevUrl);
       }
       return null;
     });
+    setUploadedUrl(null);
     
     // Set new file and create preview
     setSelectedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
+    
+    // Upload file to server
+    const uploadedUrl = await uploadFile(file);
+    if (uploadedUrl) {
+      setUploadedUrl(uploadedUrl);
+    }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
+      await processFile(e.target.files[0]);
     }
   };
 
@@ -196,13 +238,13 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
+      await processFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -269,20 +311,38 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
             {previewUrl ? (
               <div className="image-preview-container">
                 <img src={previewUrl} alt="Preview" className="preview-image" />
+                {isUploading && (
+                  <div className="upload-status-overlay">
+                    <div className="upload-spinner"></div>
+                    <span>Uploading image...</span>
+                  </div>
+                )}
+                {uploadedUrl && !isUploading && (
+                  <div className="upload-success-badge">
+                    ✓ Uploaded
+                  </div>
+                )}
                 <button 
                   className="change-image-button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleSelectFile();
                   }}
-                  disabled={isProcessing}
+                  disabled={isProcessing || isUploading}
                 >
                   📷 Change Image
                 </button>
               </div>
             ) : (
               <div className="upload-text-new">
-                Drag and drop or click to select the image
+                {isUploading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <div className="upload-spinner"></div>
+                    <span>Uploading image...</span>
+                  </div>
+                ) : (
+                  'Drag and drop or click to select the image'
+                )}
               </div>
             )}
           </div>
@@ -362,15 +422,27 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
                 )}
               </div>
             </div>
+
+            <div className="checkbox-field-wrapper">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={autoDataSourcePrediction}
+                  onChange={(e) => setAutoDataSourcePrediction(e.target.checked)}
+                  className="checkbox-input"
+                />
+                <span className="checkbox-text">Auto Data Source Prediction</span>
+              </label>
+            </div>
           </div>
 
           <div className="action-buttons">
             <button 
               className="read-file-button" 
               onClick={handleReadFile}
-              disabled={!selectedFile || !selectedProject || !selectedScreen || isProcessing}
+              disabled={!selectedFile || !selectedProject || !selectedScreen || isProcessing || isUploading}
             >
-              Read file
+              {isUploading ? 'Uploading...' : 'Read file'}
             </button>
             <button 
               className="clear-button" 
@@ -405,30 +477,57 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
             </div>
           </div>
         ) : dbMessage ? (
-          <div className="success-container">
-            <div className="success-header">
-              <div className="header-icon">💾</div>
-              <div className="header-content">
-                <h2>Database Save Successful!</h2>
-                <p>Your results have been saved to database</p>
+          dbMessage.startsWith('Error:') ? (
+            <div className="error-container">
+              <div className="error-header">
+                <div className="header-icon">❌</div>
+                <div className="header-content">
+                  <h2>Database Save Failed!</h2>
+                  <p>An error occurred while saving to database</p>
+                </div>
+              </div>
+              <div className="error-content">
+                <div className="error-icon">⚠️</div>
+                <div className="error-text">
+                  <h4>Error</h4>
+                  <p>{dbMessage}</p>
+                </div>
+                <div className="error-actions">
+                  <button 
+                    className="close-error-button"
+                    onClick={onClearMessages}
+                  >
+                    ✕ Close
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="success-content">
-              <div className="success-icon">🎉</div>
-              <div className="success-text">
-                <h4>Saved to Database!</h4>
-                <p>{dbMessage}</p>
+          ) : (
+            <div className="success-container">
+              <div className="success-header">
+                <div className="header-icon">💾</div>
+                <div className="header-content">
+                  <h2>Database Save Successful!</h2>
+                  <p>Your results have been saved to database</p>
+                </div>
               </div>
-              <div className="success-actions">
-                <button 
-                  className="upload-new-button"
-                  onClick={onClearMessages}
-                >
-                  📤 Upload New Image
-                </button>
+              <div className="success-content">
+                <div className="success-icon">🎉</div>
+                <div className="success-text">
+                  <h4>Saved to Database!</h4>
+                  <p>{dbMessage}</p>
+                </div>
+                <div className="success-actions">
+                  <button 
+                    className="upload-new-button"
+                    onClick={onClearMessages}
+                  >
+                    📤 Upload New Image
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )
         ) : results.length > 0 ? (
           <TableView 
             items={results.map(item => ({
@@ -436,21 +535,39 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
               itemId: item.id,
               content: item.content,
               type: item.type,
-              database: item.database,
+              database: autoDataSourcePrediction ? '-' : item.database,
               description: item.description,
               imageProcessingResultId: 0,
               dataType: item.dataType,
-              dbField: item.dbField
+              dbField: item.dbField,
+              io: item.io,
+              required: item.required
             }))}
             isLoading={false}
             isEditable={true}
-            onSave={onSaveResults}
+            onSave={async (updatedItems) => {
+              const itemsToSave = updatedItems.map(item => {
+                if (autoDataSourcePrediction && item.database === '-') {
+                  const originalItem = results.find(r => r.id === item.id);
+                  return { ...item, database: originalItem?.database || item.database };
+                }
+                return item;
+              });
+              await onSaveResults(itemsToSave);
+            }}
             onSaveToDB={(items) => {
               if (!selectedScreen) {
                 alert('Please select a screen first');
                 return;
               }
-              onSaveToDB(items, selectedScreen.id);
+              if (!uploadedUrl) {
+                alert('Image has not been uploaded yet. Please wait for upload to complete.');
+                return;
+              }
+              const itemsToSave = autoDataSourcePrediction
+                ? items.map(item => ({ ...item, database: null }))
+                : items;
+              onSaveToDB(itemsToSave, selectedScreen.id, uploadedUrl);
             }}
           />
         ) : (

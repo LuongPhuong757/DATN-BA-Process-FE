@@ -84,21 +84,26 @@ export interface ProcessedItem {
   itemId: number;
   content: string;
   type: string;
-  database: string;
+  database: string | null;
   description: string;
   imageProcessingResultId: number;
   dataType?: string;
   dbField?: string;
+  io?: string;
+  required?: boolean | null;
+  stt?: number;
 }
 
 export interface ProcessedItemWithoutId {
   content: string;
   type: string;
-  database: string;
+  database: string | null;
   description: string;
   imageProcessingResultId: number;
   dataType?: string;
   dbField?: string;
+  io?: string;
+  required?: boolean | null;
 }
 
 interface TableViewProps {
@@ -119,41 +124,76 @@ const TableView: React.FC<TableViewProps> = ({
 }) => {
   const [sortField, setSortField] = useState<keyof ProcessedItem>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [filterType, setFilterType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [editedItems, setEditedItems] = useState<ProcessedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingToDB, setIsSavingToDB] = useState(false);
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-
-  // Get unique types for filter
-  const uniqueTypes = Array.from(new Set(items.map(item => item.type)));
 
   // Type options for dropdown
   const typeOptions = [
-    { value: 'text', label: 'Text' },
-    { value: 'button', label: 'Button' },
-    { value: 'icon', label: 'Icon' },
-    { value: 'table', label: 'Table' },
-    { value: 'chart', label: 'Chart' },
-    { value: 'image', label: 'Image' },
-    { value: 'link', label: 'Link' },
-    { value: 'form', label: 'Form' },
-    { value: 'label', label: 'Label' },
+    { value: 'Label', label: 'Label' },
+    { value: 'Textbox', label: 'Textbox' },
+    { value: 'Number', label: 'Number' },
+    { value: 'Dropdown', label: 'Dropdown' },
+    { value: 'Icon', label: 'Icon' },
+    { value: 'Button', label: 'Button' },
+    { value: 'Image', label: 'Image' },
+    { value: 'Toggle', label: 'Toggle' },
+    { value: 'Radio button', label: 'Radio button' },
+    { value: 'Hyperlink', label: 'Hyperlink' },
   ];
 
-  // Data type options for dropdown (kept for future use)
-  // const dataTypeOptions = [
-  //   { value: 'string', label: 'String' },
-  //   { value: 'number', label: 'Number' },
-  //   { value: 'boolean', label: 'Boolean' },
-  //   { value: 'date', label: 'Date' },
-  //   { value: 'email', label: 'Email' },
-  //   { value: 'phone', label: 'Phone' },
-  //   { value: 'url', label: 'URL' },
-  //   { value: 'json', label: 'JSON' }
-  // ];
+  // Data type options for dropdown
+  const dataTypeOptions = [
+    { value: 'string', label: 'String' },
+    { value: 'number', label: 'Number' },
+    { value: 'email', label: 'Email' },
+    { value: 'phone', label: 'Phone' },
+    { value: 'url', label: 'URL' },
+    { value: 'date', label: 'Date' },
+    { value: 'boolean', label: 'Boolean' },
+    { value: 'json', label: 'JSON' }
+  ];
+
+  // IO options for dropdown
+  const ioOptions = [
+    { value: 'Input', label: 'Input' },
+    { value: 'Output', label: 'Output' },
+    { value: 'Action', label: 'Action' }
+  ];
+
+  // Required options for dropdown (using string values for dropdown, convert to boolean/null)
+  const requiredOptions = [
+    { value: 'true', label: '✓ Bắt buộc' },
+    { value: 'false', label: '✗ Không bắt buộc' },
+    { value: 'null', label: '∆ Tùy điều kiện' }
+  ];
+
+  // Helper function to convert required value to string for dropdown
+  const requiredToString = (value: boolean | null | undefined): string => {
+    if (value === true) return 'true';
+    if (value === false) return 'false';
+    return 'null';
+  };
+
+  // Helper function to convert string to required value
+  const stringToRequired = (value: string): boolean | null => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return null;
+  };
+
+  // Helper function to render required icon
+  const renderRequiredIcon = (required: boolean | null | undefined) => {
+    if (required === true) {
+      return <span className="required-icon required-true" title="Bắt buộc">✓</span>;
+    }
+    if (required === false) {
+      return <span className="required-icon required-false" title="Không bắt buộc">✗</span>;
+    }
+    return <span className="required-icon required-conditional" title="Tùy điều kiện">∆</span>;
+  };
 
   // Handle edit functions
   const handleEdit = () => {
@@ -166,7 +206,7 @@ const TableView: React.FC<TableViewProps> = ({
     setEditedItems([]);
   };
 
-  const handleFieldChange = (id: number, field: keyof ProcessedItem, value: string) => {
+  const handleFieldChange = (id: number, field: keyof ProcessedItem, value: string | boolean | null) => {
     setEditedItems(prev => 
       prev.map(item => 
         item.id === id ? { ...item, [field]: value } : item
@@ -208,11 +248,10 @@ const TableView: React.FC<TableViewProps> = ({
   const currentItems = isEditing ? editedItems : items;
   const filteredAndSortedItems = currentItems
     .filter(item => {
-      const matchesType = filterType === 'all' || item.type === filterType;
       const matchesSearch = searchTerm === '' || 
         item.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.description.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesSearch;
+      return matchesSearch;
     })
     .sort((a, b) => {
       const aValue = a[sortField];
@@ -242,18 +281,41 @@ const TableView: React.FC<TableViewProps> = ({
 
   const getTypeColor = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'text':
+      case 'label':
         return '#2196F3';
+      case 'textbox':
+        return '#42A5F5';
       case 'button':
         return '#4CAF50';
       case 'icon':
         return '#FF9800';
-      case 'table':
+      case 'dropdown':
         return '#9C27B0';
-      case 'chart':
-        return '#F44336';
+      case 'image':
+        return '#E91E63';
+      case 'toggle':
+        return '#00BCD4';
+      case 'radio button':
+        return '#FF5722';
+      case 'hyperlink':
+        return '#795548';
+      case 'number':
+        return '#009688';
       default:
         return '#607D8B';
+    }
+  };
+
+  const getIOColor = (io: string) => {
+    switch (io?.toLowerCase()) {
+      case 'input':
+        return '#4CAF50';
+      case 'output':
+        return '#2196F3';
+      case 'action':
+        return '#FF9800';
+      default:
+        return '#9E9E9E';
     }
   };
 
@@ -298,24 +360,6 @@ const TableView: React.FC<TableViewProps> = ({
     }
     // If no match, capitalize first letter
     return fixedType.charAt(0).toUpperCase() + fixedType.slice(1);
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedRows(new Set(filteredAndSortedItems.map(item => item.id)));
-    } else {
-      setSelectedRows(new Set());
-    }
-  };
-
-  const handleSelectRow = (id: number, checked: boolean) => {
-    const newSelected = new Set(selectedRows);
-    if (checked) {
-      newSelected.add(id);
-    } else {
-      newSelected.delete(id);
-    }
-    setSelectedRows(newSelected);
   };
 
   if (isLoading) {
@@ -396,14 +440,6 @@ const TableView: React.FC<TableViewProps> = ({
         <table className={`data-table ${isEditing ? 'editing' : ''}`}>
           <thead>
             <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  checked={selectedRows.size === filteredAndSortedItems.length && filteredAndSortedItems.length > 0}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                  className="row-checkbox"
-                />
-              </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('id')}
@@ -417,34 +453,35 @@ const TableView: React.FC<TableViewProps> = ({
                 className="sortable"
                 onClick={() => handleSort('content')}
               >
-                Content {getSortIcon('content')}
+                Tên item {getSortIcon('content')}
+              </th>
+              <th>
+                Data Type
+              </th>
+              <th>
+                Input/Output
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('database')}
               >
-                Database {getSortIcon('database')}
+                Data Source {getSortIcon('database')}
+              </th>
+              <th>
+                Required
               </th>
               <th 
                 className="sortable"
                 onClick={() => handleSort('description')}
               >
-                Description {getSortIcon('description')}
+                Mô tả {getSortIcon('description')}
               </th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedItems.map((item, index) => (
               <tr key={item.id} className={index % 2 === 0 ? 'even' : 'odd'}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={selectedRows.has(item.id)}
-                    onChange={(e) => handleSelectRow(item.id, e.target.checked)}
-                    className="row-checkbox"
-                  />
-                </td>
-                <td className="stt-cell">{item.id}</td>
+                <td className="stt-cell">{item.stt !== undefined ? item.stt : item.id}</td>
                 <td className="type-cell">
                   {isEditing ? (
                     <SimpleDropdown
@@ -469,16 +506,67 @@ const TableView: React.FC<TableViewProps> = ({
                     <span className="content-text">{item.content}</span>
                   )}
                 </td>
+                <td className="datatype-cell">
+                  {isEditing ? (
+                    <SimpleDropdown
+                      value={item.dataType || 'string'}
+                      onChange={(value) => handleFieldChange(item.id, 'dataType', value)}
+                      options={dataTypeOptions}
+                      getTypeColor={(value) => '#2196F3'}
+                    />
+                  ) : (
+                    <span className="datatype-text">{item.dataType || '-'}</span>
+                  )}
+                </td>
+                <td className="io-cell">
+                  {isEditing ? (
+                    <SimpleDropdown
+                      value={item.io || 'Output'}
+                      onChange={(value) => handleFieldChange(item.id, 'io', value)}
+                      options={ioOptions}
+                      getTypeColor={getIOColor}
+                    />
+                  ) : (
+                    <span 
+                      className="io-text"
+                      style={{ 
+                        backgroundColor: getIOColor(item.io || ''),
+                        color: '#fff',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      {item.io || 'Output'}
+                    </span>
+                  )}
+                </td>
                 <td className="database-cell">
                   {isEditing ? (
                     <input
                       type="text"
-                      value={item.database}
-                      onChange={(e) => handleFieldChange(item.id, 'database', e.target.value)}
+                      value={item.database || '-'}
+                      onChange={(e) => handleFieldChange(item.id, 'database', e.target.value === '-' ? null : e.target.value)}
                       className="edit-input"
                     />
                   ) : (
-                    <span className="database-text">{item.database}</span>
+                    <span className="database-text">{item.database || '-'}</span>
+                  )}
+                </td>
+                <td className="required-cell">
+                  {isEditing ? (
+                    <SimpleDropdown
+                      value={requiredToString(item.required)}
+                      onChange={(value) => handleFieldChange(item.id, 'required', stringToRequired(value))}
+                      options={requiredOptions}
+                      getTypeColor={(value) => {
+                        if (value === 'true') return '#F44336';
+                        if (value === 'null') return '#FF9800';
+                        return '#9E9E9E';
+                      }}
+                    />
+                  ) : (
+                    renderRequiredIcon(item.required)
                   )}
                 </td>
                 <td className="description-cell">

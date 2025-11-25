@@ -263,6 +263,57 @@
   cursor: not-allowed;
 }
 
+.gg-sheet-button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--secondary-300);
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--secondary-700);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.gg-sheet-button:hover:not(:disabled) {
+  background: var(--secondary-50);
+}
+
+.gg-sheet-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.google-sheet-url-container {
+  margin: var(--space-4) 0;
+  padding: var(--space-4) var(--space-8);
+  background: white;
+  border: 1px solid var(--secondary-200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.google-sheet-label {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--secondary-700);
+}
+
+.google-sheet-link {
+  display: block;
+  color: var(--primary-600);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  word-break: break-all;
+  transition: color var(--transition-fast);
+}
+
+.google-sheet-link:hover {
+  color: var(--primary-700);
+  text-decoration: underline;
+}
+
 .entries-selector {
   display: flex;
   align-items: center;
@@ -558,5 +609,59 @@
   
   .pagination-container {
     padding: var(--space-3);
+  }
+}
+
+/* Project Image Container */
+.project-image-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.project-image-header {
+  margin-bottom: var(--space-3);
+}
+
+.project-image-header h3 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--secondary-700);
+  margin: 0;
+}
+
+.project-image-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--secondary-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  min-height: 200px;
+  border: 1px solid var(--secondary-200);
+}
+
+.project-image {
+  max-width: 100%;
+  max-height: 600px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  object-fit: contain;
+  background: white;
+}
+
+@media (max-width: 768px) {
+  .project-image-container {
+    padding: var(--space-3);
+  }
+  
+  .project-image-wrapper {
+    padding: var(--space-2);
+  }
+  
+  .project-image {
+    max-height: 400px;
   }
 }
