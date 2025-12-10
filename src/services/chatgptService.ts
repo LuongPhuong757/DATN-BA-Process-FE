@@ -86,7 +86,7 @@ export class ChatGPTService {
     }
 
     const requestBody: ChatGPTRequest = {
-      model: 'gpt-4.1',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -216,7 +216,8 @@ The array length MUST equal the EXACT number of numbered items you counted in th
           ]
         }
       ],
-      max_tokens: 4000,
+      // Allow longer completion to tránh bị cắt giữa chừng
+      max_tokens: 12000,
       temperature: 0.1
     };
 
@@ -374,6 +375,106 @@ The array length MUST equal the EXACT number of numbered items you counted in th
       }
     }
 
+    // Helper: try to recover a truncated JSON array by keeping only fully closed objects
+    const recoverTruncatedArray = (text: string): string | null => {
+      const startIndex = text.indexOf('[');
+      if (startIndex === -1) {
+        return null;
+      }
+
+      let inString = false;
+      let isEscaped = false;
+      let objectDepth = 0;
+      let lastObjectEnd = -1;
+
+      for (let i = startIndex + 1; i < text.length; i++) {
+        const char = text[i];
+
+        if (isEscaped) {
+          isEscaped = false;
+          continue;
+        }
+
+        if (char === '\\') {
+          isEscaped = true;
+          continue;
+        }
+
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+
+        if (!inString) {
+          if (char === '{') {
+            objectDepth++;
+          } else if (char === '}') {
+            objectDepth--;
+            if (objectDepth === 0) {
+              lastObjectEnd = i;
+            }
+          }
+        }
+      }
+
+      if (lastObjectEnd === -1) {
+        return null;
+      }
+
+      const body = text.slice(startIndex + 1, lastObjectEnd + 1).trim();
+      if (!body) {
+        return null;
+      }
+
+      return `[${body}]`;
+    };
+
+    // Helper: extract first balanced JSON object/array from long text
+    const extractFirstJsonStructure = (text: string): string | null => {
+      const startIndex = text.search(/[\[{]/);
+      if (startIndex === -1) {
+        return null;
+      }
+
+      const startChar = text[startIndex];
+      const endChar = startChar === '[' ? ']' : '}';
+      let depth = 0;
+      let inString = false;
+      let isEscaped = false;
+
+      for (let i = startIndex; i < text.length; i++) {
+        const char = text[i];
+
+        if (isEscaped) {
+          isEscaped = false;
+          continue;
+        }
+
+        if (char === '\\') {
+          isEscaped = true;
+          continue;
+        }
+
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+
+        if (!inString) {
+          if (char === startChar) {
+            depth++;
+          } else if (char === endChar) {
+            depth--;
+            if (depth === 0) {
+              return text.slice(startIndex, i + 1);
+            }
+          }
+        }
+      }
+
+      return null;
+    };
+
     // Try to extract JSON array from response
     let parsedResults;
     try {
@@ -381,48 +482,80 @@ The array length MUST equal the EXACT number of numbered items you counted in th
       parsedResults = JSON.parse(jsonContent);
     } catch (e) {
       console.log('First parse attempt failed, trying to extract JSON array...');
-      
-      // Second try: find JSON array pattern (more flexible regex)
-      // This regex looks for array starting with [ and ending with ]
-      const jsonArrayPattern = /(\[[\s\S]*\])/;
-      const jsonMatch = jsonContent.match(jsonArrayPattern);
-      
-      if (jsonMatch) {
-        try {
-          parsedResults = JSON.parse(jsonMatch[1]);
-          console.log('Successfully extracted JSON array from response');
-        } catch (parseError) {
-          console.error('Failed to parse extracted JSON array:', parseError);
-          // Try to fix common JSON issues
-          let fixedJson = jsonMatch[1];
-          // Remove trailing commas before closing brackets/braces
-          fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+
+      // If response was truncated, try to recover partial but valid JSON array
+      if (finishReason === 'length') {
+        const recoveredArrayJson = recoverTruncatedArray(jsonContent);
+        if (recoveredArrayJson) {
           try {
-            parsedResults = JSON.parse(fixedJson);
-            console.log('Successfully parsed after fixing trailing commas');
-          } catch (fixError) {
-            console.error('Failed to parse even after fixing:', fixError);
-            console.error('Problematic JSON content:', fixedJson.substring(0, 1000));
-            throw new Error(`Không thể phân tích dữ liệu từ ChatGPT. Vui lòng thử lại với ảnh khác.`);
+            parsedResults = JSON.parse(recoveredArrayJson);
+            console.log('Successfully recovered JSON array from truncated response');
+          } catch (recoverError) {
+            console.error('Failed to parse recovered truncated array:', recoverError);
           }
         }
-      } else {
-        // Third try: look for any JSON object/array in the content
-        const anyJsonPattern = /(\{[\s\S]*\}|\[[\s\S]*\])/;
-        const anyJsonMatch = jsonContent.match(anyJsonPattern);
-        
-        if (anyJsonMatch) {
+      }
+
+      if (!parsedResults) {
+        // Try to extract a balanced JSON structure from the full content
+        const balancedJson = extractFirstJsonStructure(jsonContent);
+        if (balancedJson) {
           try {
-            parsedResults = JSON.parse(anyJsonMatch[1]);
-            console.log('Found and parsed JSON object/array');
+            parsedResults = JSON.parse(balancedJson);
+            console.log('Successfully parsed JSON from balanced structure extraction');
+          } catch (balancedError) {
+            console.error('Failed to parse balanced JSON structure:', balancedError);
+          }
+        }
+      }
+
+      if (!parsedResults) {
+        // Second try: find JSON array pattern (more flexible regex)
+        // This regex looks for array starting with [ and ending with ]
+        const jsonArrayPattern = /(\[[\s\S]*\])/;
+        const jsonMatch = jsonContent.match(jsonArrayPattern);
+        
+        if (jsonMatch) {
+          try {
+            parsedResults = JSON.parse(jsonMatch[1]);
+            console.log('Successfully extracted JSON array from response');
           } catch (parseError) {
-            console.error('Failed to parse found JSON:', parseError);
-            throw new Error(`Không thể phân tích dữ liệu từ ChatGPT. Vui lòng thử lại với ảnh khác.`);
+            console.error('Failed to parse extracted JSON array:', parseError);
+            // Try to fix common JSON issues
+            let fixedJson = jsonMatch[1];
+            // Remove trailing commas before closing brackets/braces
+            fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+            try {
+              parsedResults = JSON.parse(fixedJson);
+              console.log('Successfully parsed after fixing trailing commas');
+            } catch (fixError) {
+              console.error('Failed to parse even after fixing:', fixError);
+              console.error('Problematic JSON content:', fixedJson.substring(0, 1000));
+              throw new Error(`Không thể phân tích dữ liệu từ ChatGPT. Vui lòng thử lại với ảnh khác.`);
+            }
           }
         } else {
-          console.error('No JSON array or object found in response');
-          console.error('Full response content:', content);
-          throw new Error(`ChatGPT không trả về dữ liệu hợp lệ. Vui lòng thử lại với ảnh khác.`);
+          // Third try: look for any JSON object/array in the content
+          const anyJsonPattern = /(\{[\s\S]*\}|\[[\s\S]*\])/;
+          const anyJsonMatch = jsonContent.match(anyJsonPattern);
+          
+          if (anyJsonMatch) {
+            // As a last resort, also try balanced extraction on this substring
+            const balancedFromAny = extractFirstJsonStructure(anyJsonMatch[1]);
+            const candidateJson = balancedFromAny || anyJsonMatch[1];
+
+            try {
+              parsedResults = JSON.parse(candidateJson);
+              console.log('Found and parsed JSON object/array');
+            } catch (parseError) {
+              console.error('Failed to parse found JSON:', parseError);
+              throw new Error(`Không thể phân tích dữ liệu từ ChatGPT. Vui lòng thử lại với ảnh khác.`);
+            }
+          } else {
+            console.error('No JSON array or object found in response');
+            console.error('Full response content:', content);
+            throw new Error(`ChatGPT không trả về dữ liệu hợp lệ. Vui lòng thử lại với ảnh khác.`);
+          }
         }
       }
     }
