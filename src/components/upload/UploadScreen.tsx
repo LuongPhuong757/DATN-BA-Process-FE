@@ -535,7 +535,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
               itemId: item.id,
               content: item.content,
               type: item.type,
-              database: autoDataSourcePrediction ? '-' : item.database,
+              database: autoDataSourcePrediction ? item.database : '-',
               description: item.description,
               imageProcessingResultId: 0,
               dataType: item.dataType,
@@ -547,7 +547,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
             isEditable={true}
             onSave={async (updatedItems) => {
               const itemsToSave = updatedItems.map(item => {
-                if (autoDataSourcePrediction && item.database === '-') {
+                if (!autoDataSourcePrediction && item.database === '-') {
                   const originalItem = results.find(r => r.id === item.id);
                   return { ...item, database: originalItem?.database || item.database };
                 }
@@ -564,7 +564,7 @@ const UploadScreen: React.FC<UploadScreenProps> = ({
                 alert('Image has not been uploaded yet. Please wait for upload to complete.');
                 return;
               }
-              const itemsToSave = autoDataSourcePrediction
+              const itemsToSave = !autoDataSourcePrediction
                 ? items.map(item => ({ ...item, database: null }))
                 : items;
               onSaveToDB(itemsToSave, selectedScreen.id, uploadedUrl);

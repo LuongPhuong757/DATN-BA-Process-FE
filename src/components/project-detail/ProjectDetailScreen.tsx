@@ -86,13 +86,13 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     
     // Helper function to format required value
     const formatRequired = (required: boolean | null | undefined): string => {
-      if (required === true) return '○';
-      if (required === false) return '';
-      if (required === null) return '∆';
+      if (required === true) return 'Có';
+      if (required === false) return 'Không';
+      if (required === null) return 'Không xác định';
       return '';
     };
     
-    // Define CSV headers (excluding ID fields)
+    // Define CSV headers (excluding ID fields and DB Field)
     const headers = [
       'STT',
       'Tên item',
@@ -101,8 +101,7 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
       'Input/Output',
       'Data Source',
       'Required',
-      'Mô tả',
-      'DB Field'
+      'Mô tả'
     ];
 
     // Convert data to CSV format (excluding ID fields)
@@ -114,10 +113,9 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
         `"${item.type}"`,
         `"${(item as any).dataType || ''}"`,
         `"${(item as any).io || 'Output'}"`,
-        `"${item.database}"`,
+        `"${item.database || '-'}"`,
         `"${formatRequired((item as any).required)}"`,
-        `"${item.description.replace(/"/g, '""')}"`, // Escape quotes in description
-        `"${(item as any).dbField || ''}"`
+        `"${item.description.replace(/"/g, '""')}"` // Escape quotes in description
       ].join(','))
     ].join('\n');
 
@@ -142,13 +140,14 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
     
     // Helper function to format required value
     const formatRequired = (required: boolean | null | undefined): string => {
-      if (required === true) return '○';
-      if (required === false) return '';
-      if (required === null) return '∆';
+      if (required === undefined) return 'không';
+      if (required === true) return 'Có';
+      if (required === false) return 'Không';
+      if (required === null) return 'Không xác định';
       return '';
     };
     
-    // Define headers
+    // Define headers (excluding DB Field)
     const headers = [
       'STT',
       'Tên item',
@@ -157,8 +156,7 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
       'Input/Output',
       'Data Source',
       'Required',
-      'Mô tả',
-      'DB Field'
+      'Mô tả'
     ];
 
     // Prepare data for Google Sheet
@@ -170,10 +168,9 @@ const ProjectDetailScreen: React.FC<ProjectDetailScreenProps> = ({
         item.type,
         (item as any).dataType || '',
         (item as any).io || 'Output',
-        item.database,
+        item.database || '-',
         formatRequired((item as any).required),
-        item.description,
-        (item as any).dbField || ''
+        item.description
       ])
     ];
 
